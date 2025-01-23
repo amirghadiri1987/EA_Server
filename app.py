@@ -6,15 +6,15 @@ app = Flask(__name__)
 def hello_world():
     return "<p>Hello, World!</p>"
 	
-@app.route("/check")
-def check_File():
-	pass
+# @app.route("/check")
+# def check_File():
+# 	pass
 
-def upload_file():
-	pass
+# def upload_file():
+# 	pass
 
-de upload_data():
-	pass
+# de upload_data():
+# 	pass
 
 
 if __name__ == '__main__':
