@@ -12,9 +12,21 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def hello_world():
     return "<p>Hello, World!</p>"
 
+# Set the directory to save files
+UPLOAD_FOLDER = '/home/amir/w/EA_Server/ServerUpload'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 @app.route('/upload_csv', methods=['POST'])
 def upload_csv():
-    pass
+    if 'file' not in request.files:
+        return jsonify({'status': 'fail', 'message': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'status': 'fail', 'message': 'No selected file'}), 400
+
+    # Save the file
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], file.filename))
+    return jsonify({'status': 'success', 'message': 'File uploaded successfully'}), 200
 
 
 def upload_data():
