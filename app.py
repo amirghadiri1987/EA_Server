@@ -23,14 +23,10 @@ def upload_data():
 
 @app.route('/check_test_file', methods=['GET'])
 def check_test_file():
-    print("Received request for file check")
     file_path = "/home/amir/w/ServerUpload/1001/test.txt"
-    print(f"Checking path: {file_path}")
     if os.path.exists(file_path) and os.path.isfile(file_path):
-        print("File found!")
         return jsonify({'status': 'success', 'message': 'Test file found', 'path': file_path}), 200
     else:
-        print("File not found!")
         return jsonify({'status': 'fail', 'message': 'Test file not found'}), 404
 
 if __name__ == '__main__':
