@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import os
+import config
 
 app = Flask(__name__)
 
@@ -9,6 +10,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route("/")
 def hello_world():
+    print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
 
