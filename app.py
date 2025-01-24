@@ -4,7 +4,7 @@ import os
 app = Flask(__name__)
 
 # Consistent upload folder definition
-UPLOAD_FOLDER = '/home/amir/w/EA_Server/ServerUpload'  # Or '/root/EA_Server/ServerUpload' if needed
+UPLOAD_FOLDER = '/home/amir/w/ServerUpload'  # Or '/root/EA_Server/ServerUpload' if needed
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route("/")
