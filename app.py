@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify
 import os
 import config
 
+# df contains lookup data in the from of
+# Row Open Time	Symbol	Magic Number	Type	Volume	Open Price	S/L	T/P	Close Price	Close Time	Commission	Swap	Profit	Profit Points	Duration	Open Comment	Close Comment
+
 app = Flask(__name__)
 
 # Consistent upload folder definition
