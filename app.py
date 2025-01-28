@@ -165,8 +165,8 @@ def process_csv():
     pass
 
 # 3. Transfer data to CSV file.
-@app.route('/append_csv', methods=['POST'])
-def append_csv():
+@app.route('/append_csva', methods=['POST'])
+def append_csva():
     pass
 
     
