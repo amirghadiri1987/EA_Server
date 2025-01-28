@@ -5,26 +5,37 @@ import config
 
 app = Flask(__name__)
 
+@app.route("/")
+def hello_world():
+    print("Configured upload folder:", config.load_file_upload)
+    return "<p>Hello, World!</p>"
 
 
-# 1. Check if the CSV file exists in the directory
+
+# 1. Check if the CSV file exists in the directory for a specific client
 @app.route('/check_csv', methods=['GET'])
 def check_csv():
-    file_path = os.path.join(config.load_file_upload, f"{config.name_file_upload}.csv")  # Construct the full file path
+    client_id = request.args.get('clientID')  # Get clientID from the request
+    if not client_id:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID'}), 400
+
+    # Construct the path using the clientID
+    file_path = os.path.join(config.load_file_upload, client_id, f"{config.name_file_upload}.csv")
 
     if os.path.exists(file_path) and os.path.isfile(file_path):
-        print(f"CSV file exists at {file_path}")
+        print(f"CSV file exists for client {client_id} at {file_path}")
         return jsonify({
             'status': 'success',
-            'message': f"File found at {file_path}",
+            'message': f"File found for client {client_id} at {file_path}",
             'file_path': file_path
         }), 200
     else:
-        print(f"CSV file not found at {file_path}")
+        print(f"CSV file not found for client {client_id} at {file_path}")
         return jsonify({
             'status': 'fail',
-            'message': f"File not found at {file_path}"
+            'message': f"File not found for client {client_id} at {file_path}"
         }), 404
+
 
 
 
