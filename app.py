@@ -160,13 +160,13 @@ def process_csv():
 
 
 # 1. Upload CSV to directory by clientID
-@app.route('/process_csv', methods=['POST'])
-def process_csv():
+@app.route('/process_csvss', methods=['POST'])
+def process_csvss():
     pass
 
 # 3. Transfer data to CSV file.
-@app.route('/append_csva', methods=['POST'])
-def append_csva():
+@app.route('/append_csv', methods=['POST'])
+def append_csv():
     pass
 
     
