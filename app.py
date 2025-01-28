@@ -1,67 +1,80 @@
 from flask import Flask, request, jsonify
 import os
+<<<<<<< HEAD
+=======
+import pandas as pd  # For reading and checking CSV file row count
+>>>>>>> origin/main
 import config
 
 app = Flask(__name__)
 
 # Consistent upload folder definition
-UPLOAD_FOLDER = '/home/amir/w/ServerUpload'  # Or '/root/EA_Server/ServerUpload' if needed
+UPLOAD_FOLDER = '/home/amir/w/ServerUpload'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route("/")
 def hello_world():
+<<<<<<< HEAD
     # Print and use the value from config
+=======
+>>>>>>> origin/main
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
-
-@app.route('/upload_csv', methods=['POST'])
-def upload_csv():
+@app.route('/process_csv', methods=['POST'])
+def process_csv():
     client_id = request.form.get('clientID')
-    if not client_id:
-        return jsonify({'status': 'fail', 'message': 'Missing clientID'}), 400
+    row_system = request.form.get('rowSystem')
+    file = request.files.get('file')
 
-    if 'file' not in request.files:
-        return jsonify({'status': 'fail', 'message': 'No file part'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'status': 'fail', 'message': 'No selected file'}), 400
+    if not client_id or not row_system or not file:
+        return jsonify({'status': 'fail', 'message': 'Missing required inputs'}), 400
+
+    try:
+        row_system = int(row_system)  # Ensure rowSystem is an integer
+    except ValueError:
+        return jsonify({'status': 'fail', 'message': 'rowSystem must be an integer'}), 400
 
     client_folder = os.path.join(app.config['UPLOAD_FOLDER'], client_id)
     os.makedirs(client_folder, exist_ok=True)
 
     file_path = os.path.join(client_folder, file.filename)
-    file.save(file_path)
-
-    return jsonify({'status': 'success', 'message': 'File uploaded successfully', 'path': file_path}), 200
-
-
-
-@app.route('/check_file', methods=['GET'])  # More generic endpoint name
-def check_file():
-    client_id = request.args.get('clientID')  # Get clientID as a query parameter
-    filename = request.args.get('filename')  # Get filename as a query parameter
-
-    if not client_id or not filename:
-        return jsonify({'status': 'fail', 'message': 'Missing clientID or filename'}), 400
-
-
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], client_id, filename)
-
 
     if os.path.exists(file_path) and os.path.isfile(file_path):
-        return jsonify({'status': 'success', 'message': 'File found', 'path': file_path}), 200
-    else:
-        return jsonify({'status': 'fail', 'message': 'File not found'}), 404
+        # File exists, check row count
+        try:
+            existing_df = pd.read_csv(file_path)
+            existing_row_count = len(existing_df)
+        except Exception as e:
+            return jsonify({'status': 'fail', 'message': f'Error reading existing file: {str(e)}'}), 500
 
-@app.route('/check_test_file', methods=['GET'])
-def check_test_file():
-    file_path = "/home/amir/w/ServerUpload/1001/test.txt"
-    if os.path.exists(file_path) and os.path.isfile(file_path):
-        return jsonify({'status': 'success', 'message': 'Test file found', 'path': file_path}), 200
+        if existing_row_count == row_system:
+            return jsonify({
+                'status': 'success',
+                'message': 'File exists and matches rowSystem',
+                'rows': existing_row_count,
+                'path': file_path
+            }), 200
+        else:
+            # Row counts do not match; upload the new file
+            file.save(file_path)
+            return jsonify({
+                'status': 'success',
+                'message': 'File row count mismatch. New file uploaded.',
+                'existing_rows': existing_row_count,
+                'new_rows': row_system,
+                'path': file_path
+            }), 200
     else:
-        return jsonify({'status': 'fail', 'message': 'Test file not found'}), 404
+        # File does not exist; upload the file
+        file.save(file_path)
+        return jsonify({
+            'status': 'success',
+            'message': 'File did not exist. New file uploaded.',
+            'new_rows': row_system,
+            'path': file_path
+        }), 200
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
