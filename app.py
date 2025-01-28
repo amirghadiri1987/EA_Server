@@ -12,29 +12,29 @@ def hello_world():
 
 
 
-# 1. Check if the CSV file exists in the directory for a specific client
 @app.route('/check_csv', methods=['GET'])
 def check_csv():
-    client_id = request.args.get('clientID')  # Get clientID from the request
-    if not client_id:
-        return jsonify({'status': 'fail', 'message': 'Missing clientID'}), 400
+    client_id = request.args.get('clientID')
+    file_name = request.args.get('fileName')
 
-    # Construct the path using the clientID
-    file_path = os.path.join(config.load_file_upload, client_id, f"{config.name_file_upload}.csv")
+    if not client_id or not file_name:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
 
-    if os.path.exists(file_path) and os.path.isfile(file_path):
-        print(f"CSV file exists for client {client_id} at {file_path}")
+    file_path = os.path.join(config.load_file_upload, client_id, file_name)
+
+    if os.path.exists(file_path):
         return jsonify({
             'status': 'success',
-            'message': f"File found for client {client_id} at {file_path}",
+            'message': f"File {file_name} found for client {client_id}",
             'file_path': file_path
         }), 200
     else:
-        print(f"CSV file not found for client {client_id} at {file_path}")
         return jsonify({
             'status': 'fail',
-            'message': f"File not found for client {client_id} at {file_path}"
+            'message': f"File {file_name} not found for client {client_id}",
+            'file_path': file_path
         }), 404
+
 
 
 
