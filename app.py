@@ -38,11 +38,11 @@ def check_csv():
 
 
 # 2. Count the number of rows in the first column.
-@app.route('/count_rows_csv', methods=['POST'])
+@app.route('/count_rows_csv', methods=['GET'])
 def count_rows_csv():
-    # Get the clientID and fileName from the request data
-    client_id = request.form.get('clientID')
-    file_name = request.form.get('fileName')
+    # Get the clientID and fileName from the query parameters
+    client_id = request.args.get('clientID')
+    file_name = request.args.get('fileName')
 
     if not client_id or not file_name:
         return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
@@ -82,6 +82,7 @@ def count_rows_csv():
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
 
 
 
