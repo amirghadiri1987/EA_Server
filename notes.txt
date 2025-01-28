@@ -18,10 +18,13 @@ This is a project to maintain and protect CSV files uploaded by customers.
 [] pip install requests
   6. install pandas
 [] sudo pip install pandas
+
+#
   7. install xdg-open opening file exell
 [ ] apt install xdg-utils
-  8. install csvtool opening file exell
+  1. install csvtool opening file exell
 [ ] sudo apt install csvtool
+[ ] sudo apt install csvkit
 
 # Notes
 check port enable?
