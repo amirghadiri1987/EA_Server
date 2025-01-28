@@ -84,6 +84,41 @@ def count_rows_csv():
         }), 500
 
 
+# Consistent upload folder definition
+UPLOAD_FOLDER = '/home/amir/w/ServerUpload'  # Or '/root/EA_Server/ServerUpload' if needed
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route("/")
+def hello_world():
+    print("Configured upload folder:", config.load_file_upload)
+    return "<p>Hello, World!</p>"
+
+
+@app.route('/upload_csv', methods=['POST'])
+def upload_csv():
+    client_id = request.form.get('clientID')
+    if not client_id:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'status': 'fail', 'message': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'status': 'fail', 'message': 'No selected file'}), 400
+
+    client_folder = os.path.join(app.config['UPLOAD_FOLDER'], client_id)
+    os.makedirs(client_folder, exist_ok=True)
+
+    file_path = os.path.join(client_folder, file.filename)
+    file.save(file_path)
+
+    return jsonify({'status': 'success', 'message': 'File uploaded successfully', 'path': file_path}), 200
+
+
+
+
+
 
 
 # 1. Upload CSV to directory by clientID
