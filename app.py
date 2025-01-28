@@ -14,6 +14,7 @@ def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
+
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
     client_id = request.form.get('clientID')
@@ -33,40 +34,51 @@ def process_csv():
 
     file_path = os.path.join(client_folder, file.filename)
 
+    # Check if the file exists
     if os.path.exists(file_path) and os.path.isfile(file_path):
-        # File exists, check row count
         try:
+            # File exists, compare row count
             existing_df = pd.read_csv(file_path)
             existing_row_count = len(existing_df)
+
+            if existing_row_count == row_system:
+                # File exists and row count matches, no need to replace
+                return jsonify({
+                    'status': 'success',
+                    'message': 'File exists and matches rowSystem',
+                    'rows': existing_row_count,
+                    'path': file_path
+                }), 200
+            else:
+                # Row counts do not match, replace the file
+                file.save(file_path)
+                return jsonify({
+                    'status': 'success',
+                    'message': 'File row count mismatch. New file uploaded.',
+                    'existing_rows': existing_row_count,
+                    'new_rows': row_system,
+                    'path': file_path
+                }), 200
         except Exception as e:
             return jsonify({'status': 'fail', 'message': f'Error reading existing file: {str(e)}'}), 500
-
-        if existing_row_count == row_system:
-            return jsonify({
-                'status': 'success',
-                'message': 'File exists and matches rowSystem',
-                'rows': existing_row_count,
-                'path': file_path
-            }), 200
-        else:
-            # Row counts do not match; upload the new file
+    else:
+        # File does not exist; upload the new file
+        try:
             file.save(file_path)
             return jsonify({
                 'status': 'success',
-                'message': 'File row count mismatch. New file uploaded.',
-                'existing_rows': existing_row_count,
+                'message': 'File did not exist. New file uploaded.',
                 'new_rows': row_system,
                 'path': file_path
             }), 200
-    else:
-        # File does not exist; upload the file
-        file.save(file_path)
-        return jsonify({
-            'status': 'success',
-            'message': 'File did not exist. New file uploaded.',
-            'new_rows': row_system,
-            'path': file_path
-        }), 200
+        except Exception as e:
+            return jsonify({'status': 'fail', 'message': f'Error saving new file: {str(e)}'}), 500
+
+
+
+
+
+
 
 # append dato to file csv
 @app.route('/append_csv', methods=['POST'])
