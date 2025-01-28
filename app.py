@@ -67,6 +67,7 @@ def count_rows_csv():
         
         # Count the non-empty entries in the first column (usually column 0)
         first_column_count = df.iloc[:, 0].dropna().count()
+        first_column_count = int(first_column_count)  # Convert to regular Python int
         print(f"Row count in first column: {first_column_count}")  # Debugging print statement
 
         return jsonify({
@@ -82,6 +83,9 @@ def count_rows_csv():
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
+
+
 
 
 
