@@ -7,33 +7,23 @@ app = Flask(__name__)
 
 
 
-# 1. Is there a CSV file in the directory?
+# 1. Check if the CSV file exists in the directory
 @app.route('/check_csv', methods=['GET'])
 def check_csv():
-    directory_path = config.load_file_upload  # Get the directory path from config
-    print(f"Checking directory: {directory_path}")  # Debugging: Print directory being checked
+    file_path = os.path.join(config.load_file_upload, f"{config.name_file_upload}.csv")  # Construct the full file path
 
-    # Check if directory exists
-    if not os.path.exists(directory_path):
-        print(f"Directory {directory_path} does not exist.")  # Debugging: Print error if directory doesn't exist
-        return jsonify({'status': 'fail', 'message': f'Directory {directory_path} does not exist.'}), 400
-
-    # Get a list of CSV files in the directory
-    csv_files = [f for f in os.listdir(directory_path) if f.endswith('.csv')]
-    print(f"CSV files found: {csv_files}")  # Debugging: Print list of CSV files found
-
-    # If CSV files exist, return their names
-    if csv_files:
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        print(f"CSV file exists at {file_path}")
         return jsonify({
             'status': 'success',
-            'message': f'Found {len(csv_files)} CSV file(s).',
-            'files': csv_files
+            'message': f"File found at {file_path}",
+            'file_path': file_path
         }), 200
     else:
-        print(f"No CSV files found in the directory.")  # Debugging: Print if no CSV files are found
+        print(f"CSV file not found at {file_path}")
         return jsonify({
             'status': 'fail',
-            'message': 'No CSV files found in the directory.'
+            'message': f"File not found at {file_path}"
         }), 404
 
 
