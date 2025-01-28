@@ -3,7 +3,7 @@ This is a project to maintain and protect CSV files uploaded by customers.
 
 ## Installation
   1. install virtual venv
-[] sudo apt update
+[*] sudo apt update
 [] sudo apt upgrade -y
 [] sudo apt install python3-virtualenv -y
   2. Create a Virtual Environment
