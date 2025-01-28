@@ -14,6 +14,19 @@ def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
+# Function to count rows in the first column
+def count_rows_first_column(file_path):
+    try:
+        # Read the CSV file
+        df = pd.read_csv(file_path, encoding='utf-8')
+        # Count non-empty rows in the first column
+        first_column = df.iloc[:, 0]  # Get the first column
+        row_count = first_column.notna().sum()  # Count non-empty values
+        return row_count
+    except Exception as e:
+        print(f"Error counting rows in the first column: {str(e)}")
+        return -1  # Return -1 to indicate an error
+
 # 1. Upload CSV to directory by clientID
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
@@ -40,34 +53,32 @@ def process_csv():
     # Debugging: Check if file exists and print row count
     if os.path.exists(file_path) and os.path.isfile(file_path):
         try:
-            # Attempt to read the file and print the row count
-            existing_df = pd.read_csv(file_path, encoding='utf-8')
-            existing_row_count = len(existing_df)
-            print(f"File found at {file_path} with {existing_row_count} rows.")
-            
+            # Count rows in the first column
+            first_column_row_count = count_rows_first_column(file_path)
+            if first_column_row_count == -1:
+                return jsonify({'status': 'fail', 'message': 'Error counting rows in the first column'}), 500
+
+            print(f"File found at {file_path} with {first_column_row_count} rows in the first column.")
+
             # Compare row count
-            if existing_row_count == row_system:
+            if first_column_row_count == row_system:
                 return jsonify({
                     'status': 'success',
                     'message': 'File exists and matches rowSystem',
-                    'rows': existing_row_count,
+                    'rows': first_column_row_count,
                     'path': file_path
                 }), 200
             else:
                 # Row count mismatch; replace the file
                 file.save(file_path)
-                print(f"Row count mismatch. Server rows: {existing_row_count}, Client rows: {row_system}. File replaced.")
+                print(f"Row count mismatch. Server rows: {first_column_row_count}, Client rows: {row_system}. File replaced.")
                 return jsonify({
                     'status': 'success',
                     'message': 'File row count mismatch. New file uploaded.',
-                    'existing_rows': existing_row_count,
+                    'existing_rows': first_column_row_count,
                     'new_rows': row_system,
                     'path': file_path
                 }), 200
-        except UnicodeDecodeError as e:
-            # Handle encoding issues
-            print(f"Error reading file {file_path}: {str(e)}")
-            return jsonify({'status': 'fail', 'message': f'Error reading existing file: {str(e)}'}), 500
         except Exception as e:
             print(f"Unexpected error while reading file: {str(e)}")
             return jsonify({'status': 'fail', 'message': f'Error reading existing file: {str(e)}'}), 500
