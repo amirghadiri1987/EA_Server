@@ -61,12 +61,11 @@ def count_rows_csv():
         }), 404
 
     try:
-        # Read the CSV file using pandas and count the rows in the first column
+        # Read the CSV file using pandas and count the non-empty rows in the first column
         df = pd.read_csv(file_path, encoding='utf-8')
-        print(f"CSV file loaded successfully: {file_name}")  # Debugging print statement
-        
-        # Count the non-empty entries in the first column (usually column 0)
-        first_column_count = df.iloc[:, 0].dropna().count()
+
+        # Count the non-empty entries in the first column (column 0)
+        first_column_count = df.iloc[:, 0].notna().sum()  # Count non-NA/null values in the first column
         first_column_count = int(first_column_count)  # Convert to regular Python int
         print(f"Row count in first column: {first_column_count}")  # Debugging print statement
 
@@ -83,6 +82,7 @@ def count_rows_csv():
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
 
 
 
