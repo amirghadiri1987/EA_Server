@@ -20,6 +20,9 @@ This is a project to maintain and protect CSV files uploaded by customers.
 [] sudo pip install pandas
   7. install xdg-open opening file exell
 [ ] apt install xdg-utils
+  8. install csvtool opening file exell
+[ ] sudo apt install csvtool
+
 # Notes
 check port enable?
 	sudo lsof -i :5000
