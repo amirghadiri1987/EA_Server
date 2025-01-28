@@ -23,8 +23,108 @@ Dependencies
 Install the required packages using pip:
 
 bash
-Copy
-Edit
-pip install flask pandas
+[ ] pip install flask pandas
 API Endpoints
 1. Root Endpoint
+URL: /
+Method: GET
+Response:
+Returns a confirmation message for the server's status.
+
+Example Response:
+{
+    "message": "Hello, World!"
+}
+
+2. Process CSV File
+URL: /process_csv
+Method: POST
+
+Request Parameters:
+Form Data:
+clientID: Unique identifier for the client (e.g., 1001).
+rowSystem: The expected row count for the file.
+file: The CSV file to upload.
+Logic:
+If the file exists and its row count matches rowSystem:
+Responds with a success message.
+If the file exists but the row count differs:
+Uploads the new file and replaces the old one.
+If the file does not exist:
+Creates the client folder (if necessary) and uploads the file.
+Example Request:
+
+curl -X POST http://<server-ip>:5000/process_csv \
+-F "clientID=1001" \
+-F "rowSystem=250" \
+-F "file=@/path/to/Trade_Transaction.csv"
+
+Example Responses:
+File Exists and Matches:
+
+{
+    "status": "success",
+    "message": "File exists and matches rowSystem",
+    "rows": 250,
+    "path": "/home/amir/w/ServerUpload/1001/Trade_Transaction.csv"
+}
+
+File Exists but Mismatch:
+
+{
+    "status": "success",
+    "message": "File row count mismatch. New file uploaded.",
+    "existing_rows": 200,
+    "new_rows": 250,
+    "path": "/home/amir/w/ServerUpload/1001/Trade_Transaction.csv"
+}
+File Did Not Exist:
+
+{
+    "status": "success",
+    "message": "File did not exist. New file uploaded.",
+    "new_rows": 250,
+    "path": "/home/amir/w/ServerUpload/1001/Trade_Transaction.csv"
+}
+
+Folder Structure
+The uploaded files are stored under the UPLOAD_FOLDER directory. Each client has a unique folder named after their clientID.
+
+Example Structure:
+
+/home/amir/w/ServerUpload/
+├── 1001/
+│   └── Trade_Transaction.csv
+├── 1002/
+│   └── Trade_Transaction.csv
+Configuration
+The UPLOAD_FOLDER is defined in the Flask app configuration. Update the UPLOAD_FOLDER path as needed:
+
+python
+UPLOAD_FOLDER = '/path/to/upload/directory'
+Additionally, ensure that the upload directory has appropriate write permissions.
+
+Running the Application
+Start the Server: Run the Flask app:
+
+python app.py
+Access the API:
+
+The server listens on http://0.0.0.0:5000.
+Use tools like Postman or curl to interact with the API.
+Deployment
+For production environments, consider using a WSGI server like gunicorn or deploying with tools like Docker or NGINX.
+
+Example: Run with gunicorn:
+
+
+gunicorn --bind 0.0.0.0:5000 app:app
+Troubleshooting
+File Not Found Errors: Ensure the UPLOAD_FOLDER directory exists and is writable.
+Row Count Mismatches: Confirm the file format is a valid CSV and contains no formatting issues.
+Future Improvements
+Add authentication to restrict access to the API.
+Implement detailed logging for file operations.
+Add support for additional file formats.
+
+Let me know if you need changes or additions! 😊
