@@ -68,6 +68,61 @@ def process_csv():
             'path': file_path
         }), 200
 
+# append dato to file csv
+@app.route('/append_csv', methods=['POST'])
+def append_csv():
+    """
+    Endpoint to append new rows of data to the existing CSV file.
+    If the number of rows does not match, upload the entire file.
+    """
+    client_id = request.form.get('clientID')
+    row_system = request.form.get('rowSystem')
+    data = request.form.get('data')  # Data as a CSV-like string (comma-separated values)
+
+    if not client_id or not row_system or not data:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID, rowSystem or data'}), 400
+
+    try:
+        row_system = int(row_system)  # Ensure rowSystem is an integer
+    except ValueError:
+        return jsonify({'status': 'fail', 'message': 'rowSystem must be an integer'}), 400
+
+    client_folder = os.path.join(app.config['UPLOAD_FOLDER'], client_id)
+    os.makedirs(client_folder, exist_ok=True)
+
+    file_path = os.path.join(client_folder, 'Trade_Transaction.csv')
+
+    # Convert data string to DataFrame
+    try:
+        new_data = pd.read_csv(pd.compat.StringIO(data), header=None)
+    except Exception as e:
+        return jsonify({'status': 'fail', 'message': f'Error parsing data: {str(e)}'}), 400
+
+    # If the file exists, check row count and append data; otherwise, create a new file
+    if os.path.exists(file_path):
+        try:
+            existing_data = pd.read_csv(file_path)
+            existing_row_count = len(existing_data)
+
+            if existing_row_count == row_system:
+                # Row counts match, append data to the existing file
+                updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+            else:
+                # Row counts do not match, upload the new file
+                updated_data = new_data
+        except Exception as e:
+            return jsonify({'status': 'fail', 'message': f'Error reading existing file: {str(e)}'}), 500
+    else:
+        # File does not exist; create a new file with the provided rows
+        updated_data = new_data
+
+    # Save updated data to the file
+    try:
+        updated_data.to_csv(file_path, index=False)
+        return jsonify({'status': 'success', 'message': 'Data processed successfully', 'path': file_path}), 200
+    except Exception as e:
+        return jsonify({'status': 'fail', 'message': f'Error saving file: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
