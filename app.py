@@ -92,6 +92,7 @@ def count_rows_csv():
 
 
 
+
 # Consistent upload folder definition
 UPLOAD_FOLDER = '/home/amir/w/ServerUpload'  # Or '/root/EA_Server/ServerUpload' if needed
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
