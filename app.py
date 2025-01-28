@@ -38,15 +38,46 @@ def check_csv():
 
 
 
-
-
-
-
-
-# 2. Count the number of rows in the first column.
 @app.route('/count_rows_csv', methods=['POST'])
 def count_rows_csv():
-    pass
+    # Get the clientID and fileName from the request data
+    client_id = request.form.get('clientID')
+    file_name = request.form.get('fileName')
+
+    if not client_id or not file_name:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
+
+    # Build the file path
+    file_path = os.path.join(config.load_file_upload, client_id, file_name)
+
+    # Check if the file exists
+    if not os.path.exists(file_path):
+        return jsonify({
+            'status': 'fail',
+            'message': f"File {file_name} not found for client {client_id}",
+            'file_path': file_path
+        }), 404
+
+    try:
+        # Read the CSV file using pandas and count the rows in the first column
+        df = pd.read_csv(file_path, encoding='utf-8')
+        # Count the non-empty entries in the first column (usually column 0)
+        first_column_count = df.iloc[:, 0].dropna().count()
+
+        return jsonify({
+            'status': 'success',
+            'message': f"File {file_name} processed successfully",
+            'client_id': client_id,
+            'file_name': file_name,
+            'first_column_row_count': first_column_count
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'fail',
+            'message': f"Error processing file: {str(e)}"
+        }), 500
+
+
 
 # 1. Upload CSV to directory by clientID
 @app.route('/process_csv', methods=['POST'])
