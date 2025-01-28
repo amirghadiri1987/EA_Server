@@ -14,7 +14,7 @@ def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
-
+# upload file CSV to directory upload clinetID
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
     client_id = request.form.get('clientID')
