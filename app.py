@@ -61,14 +61,12 @@ def count_rows_csv():
         }), 404
 
     try:
-        # Read the CSV file using pandas
+        # Read the CSV file using pandas and count the non-empty rows in the first column
         df = pd.read_csv(file_path, encoding='utf-8')
 
-        # Explicitly access the first column and count non-null entries
-        first_column_count = df.iloc[:, 0].notna().sum()  # This counts non-null values in the first column
-        first_column_count = int(first_column_count)  # Convert to regular Python int
-
-        print(f"Row count in first column: {first_column_count}")  # Debugging print statement
+        # Count the non-empty entries in the first column (column 0)
+        first_column_count = df.iloc[:, 0].dropna().shape[0]  # Drop NaN and count remaining rows
+        print(f"Row count in first column (excluding empty): {first_column_count}")  # Debugging print statement
 
         return jsonify({
             'status': 'success',
@@ -83,6 +81,7 @@ def count_rows_csv():
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
 
 
 
