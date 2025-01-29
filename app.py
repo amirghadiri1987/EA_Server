@@ -59,70 +59,34 @@ def count_rows_csv():
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
     client_id = request.form.get('clientID')
-    row_system = request.form.get('rowSystem')
-    file = request.files.get('file')
+    if not client_id:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID'}), 400
 
-    if not client_id or not row_system or not file:
-        return jsonify({'status': 'fail', 'message': 'Missing required inputs'}), 400
+    if 'file' not in request.files:
+        return jsonify({'status': 'fail', 'message': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'status': 'fail', 'message': 'No selected file'}), 400
 
-    try:
-        row_system = int(row_system)  # Ensure rowSystem is an integer
-    except ValueError:
-        return jsonify({'status': 'fail', 'message': 'rowSystem must be an integer'}), 400
-
-    client_folder = os.path.join(app.config['UPLOAD_FOLDER'], client_id)
+    # Get the path from the config where files should be uploaded
+    client_folder = os.path.join(config.load_file_upload, client_id)
+    
+    # Ensure that the directory exists
     os.makedirs(client_folder, exist_ok=True)
 
+    # Define the path where the file will be saved
     file_path = os.path.join(client_folder, file.filename)
+    
+    # Save the file
+    file.save(file_path)
 
-    # Debugging: Check if file exists and print row count
-    if os.path.exists(file_path) and os.path.isfile(file_path):
-        try:
-            # Attempt to read the file and print the row count
-            existing_df = pd.read_csv(file_path, encoding='utf-8')
-            existing_row_count = len(existing_df)
-            print(f"File found at {file_path} with {existing_row_count} rows.")
-            
-            # Compare row count
-            if existing_row_count == row_system:
-                return jsonify({
-                    'status': 'success',
-                    'message': 'File exists and matches rowSystem',
-                    'rows': existing_row_count,
-                    'path': file_path
-                }), 200
-            else:
-                # Row count mismatch; replace the file
-                file.save(file_path)
-                print(f"Row count mismatch. Server rows: {existing_row_count}, Client rows: {row_system}. File replaced.")
-                return jsonify({
-                    'status': 'success',
-                    'message': 'File row count mismatch. New file uploaded.',
-                    'existing_rows': existing_row_count,
-                    'new_rows': row_system,
-                    'path': file_path
-                }), 200
-        except UnicodeDecodeError as e:
-            # Handle encoding issues
-            print(f"Error reading file {file_path}: {str(e)}")
-            return jsonify({'status': 'fail', 'message': f'Error reading existing file: {str(e)}'}), 500
-        except Exception as e:
-            print(f"Unexpected error while reading file: {str(e)}")
-            return jsonify({'status': 'fail', 'message': f'Error reading existing file: {str(e)}'}), 500
-    else:
-        # File does not exist; upload the file
-        try:
-            file.save(file_path)
-            print(f"New file uploaded to {file_path}.")
-            return jsonify({
-                'status': 'success',
-                'message': 'File did not exist. New file uploaded.',
-                'new_rows': row_system,
-                'path': file_path
-            }), 200
-        except Exception as e:
-            print(f"Error saving file {file_path}: {str(e)}")
-            return jsonify({'status': 'fail', 'message': f'Error saving new file: {str(e)}'}), 500
+    # Respond with success message and file path
+    return jsonify({
+        'status': 'success',
+        'message': 'File uploaded successfully',
+        'file_path': file_path
+    }), 200
 
 
 
