@@ -41,48 +41,7 @@ def check_csv():
 # 2. Count the number of rows in the first column.
 @app.route('/count_rows_csv', methods=['GET'])
 def count_rows_csv():
-    client_id = request.args.get('clientID')
-    file_name = request.args.get('fileName')
-
-    if not client_id or not file_name:
-        return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
-
-    file_path = os.path.join(config.load_file_upload, client_id, file_name)
-    print(f"Checking file at path: {file_path}")  # Debugging print
-
-    if not os.path.exists(file_path):
-        print(f"File {file_name} not found for client {client_id}")  # Debugging print
-        return jsonify({
-            'status': 'fail',
-            'message': f"File {file_name} not found for client {client_id}",
-            'file_path': file_path
-        }), 404
-
-    try:
-        # Read ONLY the first column ("Open Time") as a string
-        df = pd.read_csv(file_path, usecols=[0], dtype=str, header=0)  
-        df.columns = ['Open Time']  # Ensure correct column naming
-
-        # Remove empty rows (strip spaces & drop NaN values)
-        count_open_time = df['Open Time'].dropna().str.strip().ne('').sum()
-
-        print("\n--- First 10 values in 'Open Time' column ---")  
-        print(df['Open Time'].head(10))  # Print first 10 values for debugging
-        print(f"\nTotal non-empty rows in 'Open Time': {count_open_time}")  # Debugging print
-
-        return jsonify({
-            'status': 'success',
-            'message': f"File {file_name} processed successfully",
-            'client_id 12': client_id,
-            'file_name': file_name,
-            'open_time_row_count': count_open_time
-        }), 200
-    except Exception as e:
-        print(f"Error processing file: {str(e)}")  # Debugging print
-        return jsonify({
-            'status': 'fail',
-            'message': f"Error processing file: {str(e)}"
-        }), 500
+    pass
 
 
 
@@ -97,9 +56,44 @@ def count_rows_csv():
 
 
 # 3. Upload CSV to directory by clientID
+# Set the upload folder from config
+UPLOAD_FOLDER = config.load_file_upload
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
-    pass
+    client_id = request.form.get('clientID')
+
+    if not client_id:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'status': 'fail', 'message': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'status': 'fail', 'message': 'No selected file'}), 400
+
+    # Define the client-specific directory
+    client_folder = os.path.join(app.config['UPLOAD_FOLDER'], client_id)
+    os.makedirs(client_folder, exist_ok=True)  # Ensure directory exists
+
+    # Save the file
+    file_path = os.path.join(client_folder, file.filename)
+    file.save(file_path)
+
+    print(f"File uploaded: {file_path}")  # Debugging print
+
+    return jsonify({
+        'status': 'success',
+        'message': 'File uploaded successfully',
+        'path': file_path
+    }), 200
+
+
+
+
+
+
 
 # 4. Transfer data to CSV file.
 @app.route('/append_csv', methods=['POST'])
