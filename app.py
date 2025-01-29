@@ -56,38 +56,35 @@ def count_rows_csv():
 
 
 # 3. Upload CSV to directory by clientID
-# Set the upload folder from config
-UPLOAD_FOLDER = config.load_file_upload
+UPLOAD_FOLDER = '/home/amir/w/ServerUpload"'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-@app.route('/process_csv', methods=['POST'])
-def process_csv():
-    client_id = request.form.get('clientID')
 
+@app.route('/upload_csv', methods=['POST'])
+def upload_csv():
+    client_id = request.form.get('clientID')
     if not client_id:
         return jsonify({'status': 'fail', 'message': 'Missing clientID'}), 400
 
     if 'file' not in request.files:
         return jsonify({'status': 'fail', 'message': 'No file part'}), 400
-    
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'status': 'fail', 'message': 'No selected file'}), 400
 
-    # Define the client-specific directory
+    # Create a unique folder for the client
     client_folder = os.path.join(app.config['UPLOAD_FOLDER'], client_id)
-    os.makedirs(client_folder, exist_ok=True)  # Ensure directory exists
+    os.makedirs(client_folder, exist_ok=True)
 
-    # Save the file
+    # Check if the file already exists
     file_path = os.path.join(client_folder, file.filename)
+    if os.path.exists(file_path):
+        return jsonify({'status': 'fail', 'message': 'File already exists', 'path': file_path}), 409
+
+    # Save the file in the client's folder
     file.save(file_path)
 
-    print(f"File uploaded: {file_path}")  # Debugging print
-
-    return jsonify({
-        'status': 'success',
-        'message': 'File uploaded successfully',
-        'path': file_path
-    }), 200
+    return jsonify({'status': 'success', 'message': 'File uploaded successfully
 
 
 
