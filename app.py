@@ -38,7 +38,7 @@ def check_csv():
         }), 404
 
 
-# 2. Count the number of rows in the first column.
+# 2. 1 Count the number of rows in the first column.
 @app.route('/count_rows_csv', methods=['GET'])
 def count_rows_csv():
     # Get the clientID and fileName from the query parameters
@@ -82,6 +82,7 @@ def count_rows_csv():
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
 
 
 
