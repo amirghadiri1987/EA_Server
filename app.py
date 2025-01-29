@@ -59,22 +59,21 @@ def count_rows_csv():
         }), 404
 
     try:
-        # Read only the first column (column A, "Open Time") as a string
-        df = pd.read_csv(file_path, usecols=[0], dtype=str)  
-        df.columns = ['Open Time']  # Rename for clarity
+        # Read ONLY the first column ("Open Time") as a string
+        df = pd.read_csv(file_path, usecols=[0], dtype=str, header=0)  
+        df.columns = ['Open Time']  # Ensure correct column naming
 
-        print("\n--- First 50 values in 'Open Time' column ---")  
-        print(df['Open Time'].head(50))  # Print first 50 values for debugging
+        # Remove empty rows (strip spaces & drop NaN values)
+        count_open_time = df['Open Time'].dropna().str.strip().ne('').sum()
 
-        # Count non-empty rows in "Open Time" column (ignoring blank/missing values)
-        count_open_time = df['Open Time'].str.strip().replace('', None).dropna().shape[0]
-
-        print(f"\nTotal non-empty rows in 'Open Time' column: {count_open_time}")  # Debugging print
+        print("\n--- First 10 values in 'Open Time' column ---")  
+        print(df['Open Time'].head(10))  # Print first 10 values for debugging
+        print(f"\nTotal non-empty rows in 'Open Time': {count_open_time}")  # Debugging print
 
         return jsonify({
             'status': 'success',
             'message': f"File {file_name} processed successfully",
-            'client_id 11': client_id,
+            'client_id 12': client_id,
             'file_name': file_name,
             'open_time_row_count': count_open_time
         }), 200
@@ -84,6 +83,7 @@ def count_rows_csv():
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
 
 
 
