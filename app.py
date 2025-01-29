@@ -48,10 +48,10 @@ def count_rows_csv():
         return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
 
     file_path = os.path.join(config.load_file_upload, client_id, file_name)
-    print(f"Checking file at path: {file_path}")  # Debugging print statement
+    print(f"Checking file at path: {file_path}")  # Debugging print
 
     if not os.path.exists(file_path):
-        print(f"File {file_name} not found for client {client_id}")  # Debugging print statement
+        print(f"File {file_name} not found for client {client_id}")  # Debugging print
         return jsonify({
             'status': 'fail',
             'message': f"File {file_name} not found for client {client_id}",
@@ -59,25 +59,32 @@ def count_rows_csv():
         }), 404
 
     try:
-        # Read only the first column and count non-empty rows
-        df = pd.read_csv(file_path, usecols=[0], dtype=str)  # Read only the first column as string
-        first_column_count = df.iloc[:, 0].str.strip().replace('', None).dropna().shape[0]  # Count non-empty rows
+        # Read only the first column
+        df = pd.read_csv(file_path, usecols=[0], dtype=str)  # Read first column as string
+        df.columns = ['FirstColumn']  # Rename for clarity
+        print("First column values:")  
+        print(df.head(50))  # Print first 50 values for debugging
 
-        print(f"Row count in first column: {first_column_count}")  # Debugging print statement
+        # Count non-empty rows
+        first_column_count = df['FirstColumn'].str.strip().replace('', None).dropna().shape[0]
+
+        print(f"Row count in first column: {first_column_count}")  # Debugging print
 
         return jsonify({
             'status': 'success',
             'message': f"File {file_name} processed successfully",
-            'client_id 6': client_id,
+            'client_id 7': client_id,
             'file_name': file_name,
+            'first_column_values': df['FirstColumn'].tolist()[:50],  # Send first 50 rows as JSON
             'first_column_row_count': first_column_count
         }), 200
     except Exception as e:
-        print(f"Error processing file: {str(e)}")  # Debugging print statement
+        print(f"Error processing file: {str(e)}")  # Debugging print
         return jsonify({
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
 
 
 
