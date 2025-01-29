@@ -41,18 +41,15 @@ def check_csv():
 # 2. Count the number of rows in the first column.
 @app.route('/count_rows_csv', methods=['GET'])
 def count_rows_csv():
-    # Get the clientID and fileName from the query parameters
     client_id = request.args.get('clientID')
     file_name = request.args.get('fileName')
 
     if not client_id or not file_name:
         return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
 
-    # Build the file path
     file_path = os.path.join(config.load_file_upload, client_id, file_name)
     print(f"Checking file at path: {file_path}")  # Debugging print statement
 
-    # Check if the file exists
     if not os.path.exists(file_path):
         print(f"File {file_name} not found for client {client_id}")  # Debugging print statement
         return jsonify({
@@ -62,21 +59,18 @@ def count_rows_csv():
         }), 404
 
     try:
-        # Read the CSV file using pandas
-        df = pd.read_csv(file_path, encoding='utf-8')
-        print(f"CSV file loaded successfully: {file_name}")  # Debugging print statement
+        # Read only the first column and count non-empty rows
+        df = pd.read_csv(file_path, usecols=[0], dtype=str)  # Read only the first column as string
+        first_column_count = df.iloc[:, 0].str.strip().replace('', None).dropna().shape[0]  # Count non-empty rows
 
-        # Isolate the first column and count all rows (including empty ones)
-        first_column = df.iloc[:, 0]  # Select the first column
-        first_column_row_count = len(first_column)  # Count all rows in the first column
-        print(f"Row count in first column: {first_column_row_count}")  # Debugging print statement
+        print(f"Row count in first column: {first_column_count}")  # Debugging print statement
 
         return jsonify({
             'status': 'success',
             'message': f"File {file_name} processed successfully",
-            'client_id 5 ': client_id,
+            'client_id 6': client_id,
             'file_name': file_name,
-            'first_column_row_count': first_column_row_count
+            'first_column_row_count': first_column_count
         }), 200
     except Exception as e:
         print(f"Error processing file: {str(e)}")  # Debugging print statement
@@ -84,6 +78,7 @@ def count_rows_csv():
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
 
 
 
