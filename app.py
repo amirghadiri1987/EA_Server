@@ -59,24 +59,25 @@ def count_rows_csv():
         }), 404
 
     try:
-        # Read only the first column
+        # Read only column "A" (first column)
         df = pd.read_csv(file_path, usecols=[0], dtype=str)  # Read first column as string
-        df.columns = ['FirstColumn']  # Rename for clarity
-        print("First column values:")  
-        print(df.head(50))  # Print first 50 values for debugging
+        df.columns = ['A']  # Rename for clarity
 
-        # Count non-empty rows
-        first_column_count = df['FirstColumn'].str.strip().replace('', None).dropna().shape[0]
+        print("\n--- First 50 values in Column A ---")  
+        print(df['A'].head(50))  # Print first 50 values for debugging
 
-        print(f"Row count in first column: {first_column_count}")  # Debugging print
+        # Count non-empty rows in column A
+        count_A = df['A'].str.strip().replace('', None).dropna().shape[0]
+
+        print(f"\nTotal non-empty rows in Column A: {count_A}")  # Debugging print
 
         return jsonify({
             'status': 'success',
             'message': f"File {file_name} processed successfully",
-            'client_id 7': client_id,
+            'client_id 9': client_id,
             'file_name': file_name,
-            'first_column_values': df['FirstColumn'].tolist()[:50],  # Send first 50 rows as JSON
-            'first_column_row_count': first_column_count
+            'column_A_values': df['A'].tolist()[:50],  # Send first 50 rows as JSON
+            'column_A_row_count': count_A
         }), 200
     except Exception as e:
         print(f"Error processing file: {str(e)}")  # Debugging print
