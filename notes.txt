@@ -19,12 +19,16 @@ This is a project to maintain and protect CSV files uploaded by customers.
   6. install pandas
 [] sudo pip install pandas
 
-#
   7. install xdg-open opening file exell
 [ ] apt install xdg-utils
   1. install csvtool opening file exell
 [ ] sudo apt install csvtool
+ or
 [ ] sudo apt install csvkit
+
+8. install reading excell
+[ ] pip install xlrd
+
 
 # Notes
 check port enable?
