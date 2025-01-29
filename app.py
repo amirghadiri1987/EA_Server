@@ -98,6 +98,7 @@ def process_csv():
 # 4. Transfer data to CSV file.
 @app.route('/append_csv', methods=['POST'])
 def append_csv():
+    pass
 
     
 if __name__ == "__main__":
