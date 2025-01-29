@@ -56,18 +56,12 @@ def count_rows_csv():
 
 
 # 3. Upload CSV to directory by clientID
-UPLOAD_FOLDER = '/home/amir/w/ServerUpload'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# 1. Upload CSV to directory by clientID
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
-    # Get data from the request
     client_id = request.form.get('clientID')
-    row_system = request.form.get('rowSystem')  # Expected row count from the client
+    row_system = request.form.get('rowSystem')
     file = request.files.get('file')
 
-    # Check for missing required fields
     if not client_id or not row_system or not file:
         return jsonify({'status': 'fail', 'message': 'Missing required inputs'}), 400
 
@@ -76,7 +70,6 @@ def process_csv():
     except ValueError:
         return jsonify({'status': 'fail', 'message': 'rowSystem must be an integer'}), 400
 
-    # Create folder for the client if not exists
     client_folder = os.path.join(app.config['UPLOAD_FOLDER'], client_id)
     os.makedirs(client_folder, exist_ok=True)
 
@@ -130,6 +123,7 @@ def process_csv():
         except Exception as e:
             print(f"Error saving file {file_path}: {str(e)}")
             return jsonify({'status': 'fail', 'message': f'Error saving new file: {str(e)}'}), 500
+
 
 
 
