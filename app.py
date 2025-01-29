@@ -48,7 +48,7 @@ def count_rows_csv():
     if not client_id or not file_name:
         return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
 
-    # Construct the full file path
+    # Build the file path
     file_path = os.path.join(config.load_file_upload, client_id, file_name)
     print(f"Checking file at path: {file_path}")  # Debugging print statement
 
@@ -62,18 +62,20 @@ def count_rows_csv():
         }), 404
 
     try:
-        # Open file and count rows in the first column
-        with open(file_path, 'r', encoding='utf-8') as file:
-            first_column_count = sum(1 for line in file if line.strip().split(',')[0])  # Count non-empty first column entries
-        
-        print(f"Row count in first column: {first_column_count}")  # Debugging print statement
+        # Read the CSV file using pandas
+        df = pd.read_csv(file_path, encoding='utf-8')
+        print(f"CSV file loaded successfully: {file_name}")  # Debugging print statement
+
+        # Count the number of rows in the first column (including empty rows)
+        first_column_row_count = len(df.iloc[:, 0])  # Use len() to count all rows
+        print(f"Row count in first column: {first_column_row_count}")  # Debugging print statement
 
         return jsonify({
             'status': 'success',
             'message': f"File {file_name} processed successfully",
-            'client_id 3 ': client_id,
+            'client_id 4 ': client_id,
             'file_name': file_name,
-            'first_column_row_count': first_column_count
+            'first_column_row_count': first_column_row_count
         }), 200
     except Exception as e:
         print(f"Error processing file: {str(e)}")  # Debugging print statement
