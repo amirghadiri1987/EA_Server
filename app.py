@@ -33,16 +33,63 @@ def check_csv():
 
 
 # 2. Count the number of rows in the first column.
-@app.route('/count_rows_csv', methods=['POST'])
+@app.route('/count_rows_csv', methods=['GET'])
 def count_rows_csv():
-    pass
+    # Get the clientID and fileName from the query parameters
+    client_id = request.args.get('clientID')
+    file_name = request.args.get('fileName')
 
-# 1. Upload CSV to directory by clientID
+    if not client_id or not file_name:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
+
+    # Build the file path
+    file_path = os.path.join(config.load_file_upload, client_id, file_name)
+    print(f"Checking file at path: {file_path}")  # Debugging print statement
+
+    # Check if the file exists
+    if not os.path.exists(file_path):
+        print(f"File {file_name} not found for client {client_id}")  # Debugging print statement
+        return jsonify({
+            'status': 'fail',
+            'message': f"File {file_name} not found for client {client_id}",
+            'file_path': file_path
+        }), 404
+
+    try:
+        # Read the CSV file using pandas, focusing only on the first column
+        df = pd.read_csv(file_path, encoding='utf-8', usecols=[0])  # Only read the first column
+
+        # Count the non-empty entries in the first column (drop NaN values)
+        first_column_count = df.dropna().shape[0]  # Drop NaN and count remaining rows in the first column
+        print(f"Row count in first column (excluding empty): {first_column_count}")  # Debugging print statement
+
+        return jsonify({
+            'status': 'success',
+            'message': f"File {file_name} processed successfully",
+            'client_id': client_id,
+            'file_name': file_name,
+            'first_column_row_count': first_column_count
+        }), 200
+    except Exception as e:
+        print(f"Error processing file: {str(e)}")  # Debugging print statement
+        return jsonify({
+            'status': 'fail',
+            'message': f"Error processing file: {str(e)}"
+        }), 500
+
+
+
+
+
+
+
+
+# 3. Upload CSV to directory by clientID
 @app.route('/process_csv', methods=['POST'])
 def process_csv():
     pass
 
-# 3. Transfer data to CSV file.
+# 4. Transfer data to CSV file.
 @app.route('/append_csv', methods=['POST'])
 def append_csv():
 
