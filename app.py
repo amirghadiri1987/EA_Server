@@ -5,6 +5,12 @@ import config
 
 app = Flask(__name__)
 
+@app.route("/")
+def hello_world():
+    print("Configured upload folder:", config.load_file_upload)
+    return "<p>Hello, World!</p>"
+
+
 
 
 # 1. Is there a CSV file in the directory?
