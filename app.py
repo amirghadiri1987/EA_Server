@@ -59,14 +59,14 @@ def count_rows_csv():
         }), 404
 
     try:
-        # Read only the first column (A) and skip empty rows
-        df = pd.read_csv(file_path, usecols=[0], dtype=str, skiprows=[0])  # Skip the header row
+        # Read only the first column (column A, "Open Time") as a string
+        df = pd.read_csv(file_path, usecols=[0], dtype=str)  
         df.columns = ['Open Time']  # Rename for clarity
 
         print("\n--- First 50 values in 'Open Time' column ---")  
         print(df['Open Time'].head(50))  # Print first 50 values for debugging
 
-        # Count non-empty rows in "Open Time" column
+        # Count non-empty rows in "Open Time" column (ignoring blank/missing values)
         count_open_time = df['Open Time'].str.strip().replace('', None).dropna().shape[0]
 
         print(f"\nTotal non-empty rows in 'Open Time' column: {count_open_time}")  # Debugging print
@@ -74,7 +74,7 @@ def count_rows_csv():
         return jsonify({
             'status': 'success',
             'message': f"File {file_name} processed successfully",
-            'client_id 10': client_id,
+            'client_id 11': client_id,
             'file_name': file_name,
             'open_time_row_count': count_open_time
         }), 200
@@ -84,6 +84,7 @@ def count_rows_csv():
             'status': 'fail',
             'message': f"Error processing file: {str(e)}"
         }), 500
+
 
 
 
