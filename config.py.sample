@@ -1,2 +1,2 @@
-load_file_upload = "Put your address of the directory to upload the CSV files"
-
+load_file_upload = 'Put your address of the directory to upload the CSV files'
+database_file_path = 'path to the file which is used by sqlite'
