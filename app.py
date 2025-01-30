@@ -7,7 +7,7 @@ import config
 
 app = Flask(__name__)
 
-# 7
+# 8
 
 @app.route("/")
 def hello_world():
@@ -17,7 +17,7 @@ def hello_world():
 
 
 def import_database_from_excell(clientID):
-    """ gets on excell file name and imports lookup data (data and failures) from it"""
+    """ gets an excel file name and imports lookup data (data and failures) from it"""
     
     filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
     
@@ -25,7 +25,10 @@ def import_database_from_excell(clientID):
     conn = sqlite3.connect(config.database_file_path)
     cur = conn.cursor()
 
+    # Drop the table if it already exists (to avoid errors on reruns)
     cur.execute('DROP TABLE IF EXISTS Trade_Transaction')
+
+    # Create table
     cur.execute("""CREATE TABLE IF NOT EXISTS Trade_Transaction(
         id INTEGER PRIMARY KEY,
         open_time DATE,
@@ -45,20 +48,25 @@ def import_database_from_excell(clientID):
         duration TEXT,
         open_comment TEXT,
         close_comment TEXT);""")
+    
+    # Commit the table creation changes
+    conn.commit()
 
     # Read CSV
     df = pd.read_csv(filepath)
 
     # Ensure that the number of columns is correct for each row
     for index, row in df.iterrows():
+        print(f"Row {index}: {row}")
         if len(row) == 17:  # Check if the row has 17 columns
-            cur.execute('''INSERT INTO serials (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+            cur.execute('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
                         (row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'], row['Volume'], row['Open Price'], row['S/L'], row['T/P'], row['Close Price'], 
                         row['Close Time'], row['Commission'], row['Swap'], row['Profit'], row['Profit Points'], row['Duration'], row['Open Comment'], row['Close Comment']))
         else:
-            print(f"Skipping row {index} with incorrect number of columns")
+            print(f"Skipping row {index} with incorrect number of columns. Length: {len(row)}")
 
+    # Commit the data insertion and close the connection
     conn.commit()
     conn.close()
 
