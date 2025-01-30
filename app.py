@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from pandas import read_csv
 import os
+import sqlite3
 import pandas as pd  # For reading and checking CSV file row count
 import config
 
@@ -16,12 +17,37 @@ def import_database_from_excell(filepath):
     """ gets on excell file name and imports lookup data (data and failures) from it"""
     # df contains lookup data in the form of
     # Row Open Time	Symbol	Magic Number	Type	Volume	Open Price	S/L	T/P	Close Price	Close Time	Commission	Swap	Profit	Profit Points	Duration	Open Comment	Close Comment
+    
+    conn = sqlite3.connect(config.database_file_path)
+    cur  = conn.cursor()
+
+    cur.execute('DROP TABLE')
+    cur.execute("""CREATE TABLE IF NOT EXISTS serials(
+        id INTEGER PRIMARY KEY,
+        open_time DATE,
+        symbol TEXT,
+        magic_number INTEGER,
+        type TEXT,
+        volume REAL,
+        open_price REAL,
+        sl REAL,
+        tp REAL,
+        close_price REAL,
+        close_time DATE,
+        commission REAL,
+        swap REAL,
+        profit REAL,
+        profit_points REAL,
+        duration TEXT,
+        open_comment TEXT,
+        close_comment TEXT);""")
+
     df = read_csv(filepath) 
     for index, row in df.iterrows():
-        #print(row["Symbol"])
+        print(row["Symbol"])
         pass
 
-    
+    conn.close()
 
 
 
