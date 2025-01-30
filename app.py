@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from pandas import read_csv
 import os
 import pandas as pd  # For reading and checking CSV file row count
 import config
@@ -9,6 +10,22 @@ app = Flask(__name__)
 def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
+
+
+def import_database_from_excell(filepath):
+    """ gets on excell file name and imports lookup data (data and failures) from it"""
+    # df contains lookup data in the form of
+    # Row Open Time	Symbol	Magic Number	Type	Volume	Open Price	S/L	T/P	Close Price	Close Time	Commission	Swap	Profit	Profit Points	Duration	Open Comment	Close Comment
+    df = read_csv(filepath) 
+    for index, row in df.iterrows():
+        #print(row["Symbol"])
+        pass
+
+    
+
+
+
+
 
 
 
@@ -38,19 +55,11 @@ def check_csv():
         }), 404
 
 
+
 # 2. Count the number of rows in the first column.
 @app.route('/count_rows_csv', methods=['GET'])
 def count_rows_csv():
     pass
-
-
-
-
-
-
-
-
-
 
 
 
@@ -102,4 +111,5 @@ def append_csv():
 
     
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    #app.run(debug=True, host='0.0.0.0', port=5000)
+    import_database_from_excell('/home/amir/w/ServerUpload/1001/Trade_Transaction.csv')
