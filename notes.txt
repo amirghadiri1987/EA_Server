@@ -29,6 +29,8 @@ This is a project to maintain and protect CSV files uploaded by customers.
 8. install reading excell
 [ ] pip install xlrd
 
+9. install sqlite3
+[ ] pip install sqlite3
 
 # Notes
 check port enable?
