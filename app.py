@@ -21,21 +21,10 @@ def import_database_from_excell(filepath):
     conn = sqlite3.connect(config.database_file_path)
     cur  = conn.cursor()
 
-    cur.execute('DROP TABLE IF EXISTS trade_transactions')
-    def import_database_from_excel(filepath):
-    """Imports trade transaction data from a CSV file into SQLite database"""
-
-    # Connect to SQLite database
-    conn = sqlite3.connect(config.database_file_path)
-    cur = conn.cursor()
-
-    # Drop table if it exists
-    cur.execute('DROP TABLE IF EXISTS serials')
-
-    # Create table
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS serials(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+    # Create the table if it doesn't exist
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS serials (
+            id INTEGER PRIMARY KEY,
             open_time TEXT,
             symbol TEXT,
             magic_number INTEGER,
@@ -53,8 +42,8 @@ def import_database_from_excell(filepath):
             duration TEXT,
             open_comment TEXT,
             close_comment TEXT
-        );
-    """)
+        )
+    ''')
 
     df = read_csv(filepath) 
     for index, row in df.iterrows():
