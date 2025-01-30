@@ -7,7 +7,7 @@ import config
 
 app = Flask(__name__)
 
-# 9
+# 10
 
 @app.route("/")
 def hello_world():
@@ -36,16 +36,24 @@ def check_and_upload_file(clientID):
 
 
 def transfer_to_database(clientID):
-    """Transfers data from the uploaded Excel file to the database."""
+    """Transfers data from the uploaded Excel file to the database efficiently, with progress updates."""
     
-    # File path on the server
     filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
     
-    # Create connection and table if it doesn't exist
+    if not os.path.exists(filepath):
+        print(f"[ERROR] File not found: {filepath}")
+        return
+    
+    print(f"[INFO] Starting database transfer for client {clientID}...")
+
+    # Create connection and optimize performance settings
     conn = sqlite3.connect(config.database_file_path)
     cur = conn.cursor()
+    
+    cur.execute("PRAGMA synchronous = OFF;")  
+    cur.execute("PRAGMA journal_mode = WAL;")  
 
-    # Create table if it doesn't exist
+    # Create table if not exists
     cur.execute("""CREATE TABLE IF NOT EXISTS Trade_Transaction(
         id INTEGER PRIMARY KEY,
         open_time DATE,
@@ -65,26 +73,45 @@ def transfer_to_database(clientID):
         duration TEXT,
         open_comment TEXT,
         close_comment TEXT);""")
-    
-    # Commit the table creation changes
+
     conn.commit()
+    print("[INFO] Database and table are ready.")
 
     # Read the CSV file
     df = pd.read_csv(filepath)
+    print(f"[INFO] Found {len(df)} rows in the CSV file.")
 
-    # Insert data into the database
+    batch_size = 100
+    data_batch = []
+
     for index, row in df.iterrows():
-        cur.execute('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
-                       (row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'], row['Volume'], 
-                        row['Open Price'], row['S/L'], row['T/P'], row['Close Price'], row['Close Time'], 
-                        row['Commission'], row['Swap'], row['Profit'], row['Profit Points'], row['Duration'], 
-                        row['Open Comment'], row['Close Comment']))
+        data_batch.append((
+            row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'], row['Volume'], 
+            row['Open Price'], row['S/L'], row['T/P'], row['Close Price'], row['Close Time'], 
+            row['Commission'], row['Swap'], row['Profit'], row['Profit Points'], row['Duration'], 
+            row['Open Comment'], row['Close Comment']
+        ))
 
-    # Commit the changes and close the connection
-    conn.commit()
+        # Commit every batch_size rows
+        if len(data_batch) >= batch_size:
+            cur.executemany('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
+            conn.commit()
+            print(f"[INFO] Inserted {batch_size} rows into the database.")
+            data_batch = []  
+
+    # Insert any remaining data
+    if data_batch:
+        cur.executemany('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
+        conn.commit()
+        print(f"[INFO] Inserted final {len(data_batch)} rows into the database.")
+
     conn.close()
+    print("[SUCCESS] Data transfer completed successfully!")
 
+
+    
 
 def check_row_count(clientID):
     """Check if the number of rows in the database matches the number of rows in the Excel file."""
