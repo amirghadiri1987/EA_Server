@@ -6,9 +6,7 @@ import pandas as pd  # For reading and checking CSV file row count
 import config
 
 app = Flask(__name__)
-
-# 1
-
+# 2
 @app.route("/")
 def hello_world():
     print("Configured upload folder:", config.load_file_upload)
@@ -25,7 +23,7 @@ def import_database_from_excell(filepath):
 
     # Create the table if it doesn't exist
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS serials (
+        CREATE TABLE IF NOT EXISTS Trade_Transaction (
             id INTEGER PRIMARY KEY,
             open_time TEXT,
             symbol TEXT,
