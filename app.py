@@ -7,82 +7,60 @@ import config
 
 app = Flask(__name__)
 
-# 5
+# 6
 
 @app.route("/")
 def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
-def create_database():
-    conn = sqlite3.connect(config.database_file_path)
-    cur  = conn.cursor()
-
-    # df contains lookup data in the form of
-    # Row Open Time	Symbol	Magic Number	Type	Volume	Open Price	S/L	T/P	Close Price	Close Time	Commission	Swap	Profit	Profit Points	Duration	Open Comment	Close Comment
-
-    # Create the table if it doesn't exist
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS Trade_Transaction (
-            id INTEGER PRIMARY KEY,
-            open_time TEXT,
-            symbol TEXT,
-            magic_number INTEGER,
-            type TEXT,
-            volume REAL,
-            open_price REAL,
-            sl REAL,
-            tp REAL,
-            close_price REAL,
-            close_time TEXT,
-            commission REAL,
-            swap REAL,
-            profit REAL,
-            profit_points REAL,
-            duration TEXT,
-            open_comment TEXT,
-            close_comment TEXT
-        )
-    ''')
 
 
-    conn.close()
-
-    print("Database and table created successfully!")
-
-def import_database_from_excell(clinetID):
+def import_database_from_excell(clientID):
     """ gets on excell file name and imports lookup data (data and failures) from it"""
     
-    # Use the file path from config
-    filepath = f"{config.load_file_upload}/{clinetID}/{config.name_file_upload}"
-
-    # Read Excel file using pandas (you might need to use read_csv instead)
-    df = pd.read_csv(filepath)  # If it's a CSV, use read_csv
-
-    # Connect to the database
+    filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
+    
+    # Create connection and table if it doesn't exist
     conn = sqlite3.connect(config.database_file_path)
     cur = conn.cursor()
 
-    # Iterate through rows of the DataFrame and insert into the database
-    for index, row in df.iterrows():
-        cur.execute('''
-            INSERT INTO Trade_Transaction (
-                open_time, symbol, magic_number, type, volume, open_price, 
-                sl, tp, close_price, close_time, commission, swap, 
-                profit, profit_points, duration, open_comment, close_comment
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'],
-            row['Volume'], row['Open Price'], row['S/L'], row['T/P'],
-            row['Close Price'], row['Close Time'], row['Commission'], row['Swap'],
-            row['Profit'], row['Profit Points'], row['Duration'], row['Open Comment'],
-            row['Close Comment']
-        ))
+    cur.execute('DROP TABLE IF EXISTS Trade_Transaction')
+    cur.execute("""CREATE TABLE IF NOT EXISTS Trade_Transaction(
+        id INTEGER PRIMARY KEY,
+        open_time DATE,
+        symbol TEXT,
+        magic_number INTEGER,
+        type TEXT,
+        volume REAL,
+        open_price REAL,
+        sl REAL,
+        tp REAL,
+        close_price REAL,
+        close_time DATE,
+        commission REAL,
+        swap REAL,
+        profit REAL,
+        profit_points REAL,
+        duration TEXT,
+        open_comment TEXT,
+        close_comment TEXT);""")
 
-    # Commit and close the connection
+    # Read CSV
+    df = pd.read_csv(filepath)
+
+    # Ensure that the number of columns is correct for each row
+    for index, row in df.iterrows():
+        if len(row) == 17:  # Check if the row has 17 columns
+            cur.execute('''INSERT INTO serials (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                        (row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'], row['Volume'], row['Open Price'], row['S/L'], row['T/P'], row['Close Price'], 
+                        row['Close Time'], row['Commission'], row['Swap'], row['Profit'], row['Profit Points'], row['Duration'], row['Open Comment'], row['Close Comment']))
+        else:
+            print(f"Skipping row {index} with incorrect number of columns")
+
     conn.commit()
     conn.close()
-    print("Data imported successfully!")
 
 
 
