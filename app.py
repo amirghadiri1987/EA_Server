@@ -7,7 +7,7 @@ import config
 
 app = Flask(__name__)
 
-# 6
+# 7
 
 @app.route("/")
 def hello_world():
@@ -153,5 +153,4 @@ def append_csv():
     
 if __name__ == "__main__":
     #app.run(debug=True, host='0.0.0.0', port=5000)
-    create_database()
     import_database_from_excell(1001)
