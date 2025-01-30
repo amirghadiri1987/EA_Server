@@ -6,7 +6,9 @@ import pandas as pd  # For reading and checking CSV file row count
 import config
 
 app = Flask(__name__)
-# 3
+
+# 5
+
 @app.route("/")
 def hello_world():
     print("Configured upload folder:", config.load_file_upload)
@@ -48,11 +50,11 @@ def create_database():
 
     print("Database and table created successfully!")
 
-def import_database_from_excell():
+def import_database_from_excell(clinetID):
     """ gets on excell file name and imports lookup data (data and failures) from it"""
     
     # Use the file path from config
-    filepath = f"{config.load_file_upload}/{config.name_file_upload}"
+    filepath = f"{config.load_file_upload}/{clinetID}/{config.name_file_upload}"
 
     # Read Excel file using pandas (you might need to use read_csv instead)
     df = pd.read_csv(filepath)  # If it's a CSV, use read_csv
@@ -174,4 +176,4 @@ def append_csv():
 if __name__ == "__main__":
     #app.run(debug=True, host='0.0.0.0', port=5000)
     create_database()
-    import_database_from_excell()
+    import_database_from_excell(1001)
