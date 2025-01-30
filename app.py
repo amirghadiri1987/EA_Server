@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
-from pandas import read_csv
 import os
+import shutil
 import sqlite3
-import pandas as pd  # For reading and checking CSV file row count
+import pandas as pd
 import config
 
 app = Flask(__name__)
 
-# 8
+# 9
 
 @app.route("/")
 def hello_world():
@@ -15,20 +15,37 @@ def hello_world():
     return "<p>Hello, World!</p>"
 
 
-
-def import_database_from_excell(clientID):
-    """ gets an excel file name and imports lookup data (data and failures) from it"""
+def check_and_upload_file(clientID):
+    """Check if the Excel file exists on the server and upload it if not."""
     
+    # File path on the client's system and on the server
+    client_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
+    server_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
+
+    if not os.path.exists(server_file_path):  # Check if file exists on server
+        print(f"File not found on server. Uploading file for client {clientID}...")
+        
+        # Logic to upload file from client system to server (may depend on how the client is transferring the file)
+        # For example, copying the file from a local directory
+        shutil.copy(client_file_path, server_file_path)
+        print("File uploaded successfully.")
+    else:
+        print(f"File already exists on the server for client {clientID}.")
+
+
+
+
+def transfer_to_database(clientID):
+    """Transfers data from the uploaded Excel file to the database."""
+    
+    # File path on the server
     filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
     
     # Create connection and table if it doesn't exist
     conn = sqlite3.connect(config.database_file_path)
     cur = conn.cursor()
 
-    # Drop the table if it already exists (to avoid errors on reruns)
-    cur.execute('DROP TABLE IF EXISTS Trade_Transaction')
-
-    # Create table
+    # Create table if it doesn't exist
     cur.execute("""CREATE TABLE IF NOT EXISTS Trade_Transaction(
         id INTEGER PRIMARY KEY,
         open_time DATE,
@@ -52,113 +69,98 @@ def import_database_from_excell(clientID):
     # Commit the table creation changes
     conn.commit()
 
-    # Read CSV
+    # Read the CSV file
     df = pd.read_csv(filepath)
 
-    # Ensure that the number of columns is correct for each row
+    # Insert data into the database
     for index, row in df.iterrows():
-        print(f"Row {index}: {row}")
-        if len(row) == 17:  # Check if the row has 17 columns
-            cur.execute('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
-                        (row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'], row['Volume'], row['Open Price'], row['S/L'], row['T/P'], row['Close Price'], 
-                        row['Close Time'], row['Commission'], row['Swap'], row['Profit'], row['Profit Points'], row['Duration'], row['Open Comment'], row['Close Comment']))
-        else:
-            print(f"Skipping row {index} with incorrect number of columns. Length: {len(row)}")
+        cur.execute('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                       (row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'], row['Volume'], 
+                        row['Open Price'], row['S/L'], row['T/P'], row['Close Price'], row['Close Time'], 
+                        row['Commission'], row['Swap'], row['Profit'], row['Profit Points'], row['Duration'], 
+                        row['Open Comment'], row['Close Comment']))
 
-    # Commit the data insertion and close the connection
+    # Commit the changes and close the connection
     conn.commit()
     conn.close()
 
 
+def check_row_count(clientID):
+    """Check if the number of rows in the database matches the number of rows in the Excel file."""
+    
+    # File path on the server
+    filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
+    
+    # Read the CSV file
+    df = pd.read_csv(filepath)
+    client_row_count = len(df)
 
+    # Connect to the database
+    conn = sqlite3.connect(config.database_file_path)
+    cur = conn.cursor()
 
+    # Get the row count from the database
+    cur.execute("SELECT COUNT(*) FROM Trade_Transaction")
+    db_row_count = cur.fetchone()[0]
+    
+    # Close the connection
+    conn.close()
 
-
-
-
-
-
-# 1. Is there a CSV file in the directory?
-@app.route('/check_csv', methods=['GET'])
-def check_csv():
-    client_id = request.args.get('clientID')
-    file_name = request.args.get('fileName')
-
-    if not client_id or not file_name:
-        return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
-
-    file_path = os.path.join(config.load_file_upload, client_id, file_name)
-
-    if os.path.exists(file_path):
-        return jsonify({
-            'status': 'success',
-            'message': f"File {file_name} found for client {client_id}",
-            'file_path': file_path
-        }), 200
+    # If the row counts don't match, re-upload and re-process the file
+    if client_row_count != db_row_count:
+        print(f"Row count mismatch: Client has {client_row_count} rows, database has {db_row_count} rows.")
+        check_and_upload_file(clientID)
+        transfer_to_database(clientID)
     else:
-        return jsonify({
-            'status': 'fail',
-            'message': f"File {file_name} not found for client {client_id}",
-            'file_path': file_path
-        }), 404
-
-
-
-# 2. Count the number of rows in the first column.
-@app.route('/count_rows_csv', methods=['GET'])
-def count_rows_csv():
-    pass
+        print("Row count matches, no need to re-upload.")
 
 
 
 
-# 3. Upload CSV to directory by clientID
-@app.route('/process_csv', methods=['POST'])
-def process_csv():
-    client_id = request.form.get('clientID')
-    if not client_id:
-        return jsonify({'status': 'fail', 'message': 'Missing clientID'}), 400
-
-    if 'file' not in request.files:
-        return jsonify({'status': 'fail', 'message': 'No file part'}), 400
+def upload_transaction_to_db(transaction_data):
+    """Upload a single transaction to the database."""
     
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'status': 'fail', 'message': 'No selected file'}), 400
+    conn = sqlite3.connect(config.database_file_path)
+    cur = conn.cursor()
 
-    # Get the path from the config where files should be uploaded
-    client_folder = os.path.join(config.load_file_upload, client_id)
-    
-    # Ensure that the directory exists
-    os.makedirs(client_folder, exist_ok=True)
+    cur.execute('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                   (transaction_data['Open Time'], transaction_data['Symbol'], transaction_data['Magic Number'], 
+                    transaction_data['Type'], transaction_data['Volume'], transaction_data['Open Price'], 
+                    transaction_data['S/L'], transaction_data['T/P'], transaction_data['Close Price'], 
+                    transaction_data['Close Time'], transaction_data['Commission'], transaction_data['Swap'], 
+                    transaction_data['Profit'], transaction_data['Profit Points'], transaction_data['Duration'], 
+                    transaction_data['Open Comment'], transaction_data['Close Comment']))
 
-    # Define the path where the file will be saved
-    file_path = os.path.join(client_folder, file.filename)
-    
-    # Save the file
-    file.save(file_path)
+    conn.commit()
+    conn.close()
 
-    # Respond with success message and file path
-    return jsonify({
-        'status': 'success',
-        'message': 'File uploaded successfully',
-        'file_path': file_path
-    }), 200
+# Upload a single transaction (when a transaction is completed)
+transaction_data = {
+    'Open Time': '2025.01.08 08:08:15',
+    'Symbol': 'BTCUSD.',
+    'Magic Number': 11085,
+    'Type': 'buy',
+    'Volume': 0.01,
+    'Open Price': 96501.4,
+    'S/L': None,
+    'T/P': None,
+    'Close Price': 96491.3,
+    'Close Time': '2025.01.08 08:10:04',
+    'Commission': -0.78,
+    'Swap': 0,
+    'Profit': -0.1,
+    'Profit Points': -1010,
+    'Duration': '0:01:49',
+    'Open Comment': 'Break EA 651',
+    'Close Comment': ''
+}
 
 
 
-
-
-
-
-
-# 4. Transfer data to CSV file.
-@app.route('/append_csv', methods=['POST'])
-def append_csv():
-    pass
 
     
 if __name__ == "__main__":
     #app.run(debug=True, host='0.0.0.0', port=5000)
-    import_database_from_excell(1001)
+    transfer_to_database(1001)
