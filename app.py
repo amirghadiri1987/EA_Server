@@ -6,20 +6,18 @@ import pandas as pd  # For reading and checking CSV file row count
 import config
 
 app = Flask(__name__)
-# 2
+# 3
 @app.route("/")
 def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
-
-def import_database_from_excell(filepath):
-    """ gets on excell file name and imports lookup data (data and failures) from it"""
-    # df contains lookup data in the form of
-    # Row Open Time	Symbol	Magic Number	Type	Volume	Open Price	S/L	T/P	Close Price	Close Time	Commission	Swap	Profit	Profit Points	Duration	Open Comment	Close Comment
-    
+def create_database():
     conn = sqlite3.connect(config.database_file_path)
     cur  = conn.cursor()
+
+    # df contains lookup data in the form of
+    # Row Open Time	Symbol	Magic Number	Type	Volume	Open Price	S/L	T/P	Close Price	Close Time	Commission	Swap	Profit	Profit Points	Duration	Open Comment	Close Comment
 
     # Create the table if it doesn't exist
     cur.execute('''
@@ -45,12 +43,46 @@ def import_database_from_excell(filepath):
         )
     ''')
 
-    df = read_csv(filepath) 
-    for index, row in df.iterrows():
-        print(row["Symbol"])
-        pass
 
     conn.close()
+
+    print("Database and table created successfully!")
+
+def import_database_from_excell():
+    """ gets on excell file name and imports lookup data (data and failures) from it"""
+    
+    # Use the file path from config
+    filepath = f"{config.load_file_upload}/{config.name_file_upload}"
+
+    # Read Excel file using pandas (you might need to use read_csv instead)
+    df = pd.read_csv(filepath)  # If it's a CSV, use read_csv
+
+    # Connect to the database
+    conn = sqlite3.connect(config.database_file_path)
+    cur = conn.cursor()
+
+    # Iterate through rows of the DataFrame and insert into the database
+    for index, row in df.iterrows():
+        cur.execute('''
+            INSERT INTO Trade_Transaction (
+                open_time, symbol, magic_number, type, volume, open_price, 
+                sl, tp, close_price, close_time, commission, swap, 
+                profit, profit_points, duration, open_comment, close_comment
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'],
+            row['Volume'], row['Open Price'], row['S/L'], row['T/P'],
+            row['Close Price'], row['Close Time'], row['Commission'], row['Swap'],
+            row['Profit'], row['Profit Points'], row['Duration'], row['Open Comment'],
+            row['Close Comment']
+        ))
+
+    # Commit and close the connection
+    conn.commit()
+    conn.close()
+    print("Data imported successfully!")
+
+
 
 
 
@@ -141,4 +173,5 @@ def append_csv():
     
 if __name__ == "__main__":
     #app.run(debug=True, host='0.0.0.0', port=5000)
-    import_database_from_excell('/home/amir/w/ServerUpload/1001/Trade_Transaction.csv')
+    create_database()
+    import_database_from_excell()
