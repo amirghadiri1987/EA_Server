@@ -1,6 +1,9 @@
 # EA_Server
 This is a project to maintain and protect CSV files uploaded by customers.
 
+### pip install -r requirements.txt
+
+
 ## Installation
   1. install virtual venv
 [] sudo apt update
