@@ -7,14 +7,20 @@ import config
 
 app = Flask(__name__)
 
-# 11
+# 12
+# TODO some health check url
+@app.route("/v1/ok")
+def health_check():
+    ret = {'message': 'ok'}
+    return jsonify(ret), 200
 
+# TODO Fix simple welcome page 
 @app.route("/")
 def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
-
+# TODO Test function check_and_upload_file in mql5
 def check_and_upload_file(clientID):
     """Check if the Excel file exists on the server and upload it if not."""
     
@@ -34,7 +40,7 @@ def check_and_upload_file(clientID):
 
 
 
-
+# TODO Test function transfer_to_database in mql5
 def transfer_to_database(clientID):
     """Transfers data from the uploaded Excel file to the database efficiently, with progress updates."""
     
@@ -112,7 +118,7 @@ def transfer_to_database(clientID):
 
 
     
-
+# TODO Test function check_row_count in mql5
 def check_row_count(clientID):
     """Check if the number of rows in the database matches the number of rows in the Excel file."""
     
@@ -144,7 +150,7 @@ def check_row_count(clientID):
 
 
 
-
+# TODO Test function upload_transaction_to_db in mql5
 def upload_transaction_to_db(transaction_data):
     """Upload a single transaction to the database."""
     
@@ -189,6 +195,6 @@ transaction_data = {
 
     
 if __name__ == "__main__":
-    #app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
     transfer_to_database(1001)
     check_row_count(1001)
