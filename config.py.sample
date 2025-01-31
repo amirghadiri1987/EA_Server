@@ -3,4 +3,4 @@ database_file_path = 'path to the file which is used by sqlite'
 
 USERNAME = 'username'
 PASSWORD = 'password'
-SECRET_KEY = 'AMIRGHADIR1987amgh2025'
+SECRET_KEY = 'top secret'
