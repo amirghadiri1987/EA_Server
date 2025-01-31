@@ -8,13 +8,17 @@ import config
 
 app = Flask(__name__)
 
-# 13
+# 14
 
 # flask-login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
+# config
+app.config.update(
+    SECRET_KEY = config.SECRET_KEY
+)
 # silly user model
 class User(UserMixin):
 
