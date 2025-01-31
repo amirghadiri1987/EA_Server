@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, redirect, url_for, session, abort
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user 
 import os
 import shutil
 import sqlite3
@@ -7,7 +8,88 @@ import config
 
 app = Flask(__name__)
 
-# 12
+# 13
+
+# flask-login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
+
+# silly user model
+class User(UserMixin):
+
+    def __init__(self, id):
+        self.id = id
+        
+        
+    def __repr__(self):
+        return "%d" % (self.id)
+
+
+# create some users with ids 1 to 20       
+user = User(0)
+
+
+# some protected url
+@app.route('/')
+@login_required
+def home():
+    return Response("Hello World!")
+
+
+# somewhere to login
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == 'POST': #TODO: stop the brute force
+        username = request.form['username']
+        password = request.form['password']        
+        if password == config.PASSWORD and username == config.USERNAME:
+            login_user(user)
+            return redirect(request.args.get("next")) #TODO: check url validity
+        else:
+            return abort(401)
+    else:
+        return Response('''
+        <form action="" method="post">
+            <p><input type=text name=username>
+            <p><input type=password name=password>
+            <p><input type=submit value=Login>
+        </form>
+        ''')
+
+
+# somewhere to logout
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return Response('<p>Logged out</p>')
+
+
+# handle login failed
+@app.errorhandler(401)
+def page_not_found(error):
+    return Response('<p>Login failed</p>')
+    
+    
+# callback to reload the user object        
+@login_manager.user_loader
+def load_user(userid):
+    return User(userid)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # TODO some health check url
 @app.route("/v1/ok")
 def health_check():
@@ -195,6 +277,6 @@ transaction_data = {
 
     
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
     transfer_to_database(1001)
     check_row_count(1001)
+    app.run(debug=True, host='0.0.0.0', port=5000)
