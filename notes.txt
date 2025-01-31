@@ -32,6 +32,9 @@ This is a project to maintain and protect CSV files uploaded by customers.
 9. install sqlite3
 [ ] pip install sqlite3
 
+10. install flask login
+[ ] pip install flask-login
+
 # Notes
 check port enable?
 	sudo lsof -i :5000
