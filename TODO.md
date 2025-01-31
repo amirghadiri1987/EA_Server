@@ -1,4 +1,4 @@
-- [] create requirements.txt (pip freeze)
+- [*] create requirements.txt (pip freeze)
 - [*] some health check url
 - [] Fix simple welcome page @app.route("/")
 - [] Test function check_and_upload_file in mql5
