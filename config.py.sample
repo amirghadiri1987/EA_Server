@@ -1,6 +1,10 @@
+# address upload
 load_file_upload = 'Put your address of the directory to upload the CSV files'
 database_file_path = 'path to the file which is used by sqlite'
 
+# login cedentials
 USERNAME = 'username'
 PASSWORD = 'password'
-SECRET_KEY = 'top secret'
+
+# generate one strong secret key for flask
+SECRET_KEY = 'random long string eith alphanumeric / #()*&'
