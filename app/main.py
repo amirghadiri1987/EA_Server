@@ -13,7 +13,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 17
+# 18
 
 # flask-login
 login_manager = LoginManager()
@@ -115,79 +115,89 @@ def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
 
+
+
+
 # TODO Test function check_and_upload_file in mql5
-def check_and_upload_file(clientID):
-    """Ensure the transaction file exists on the server; upload if missing."""
-    
+# ✅ Expose check_and_upload_file as API
+@app.route("/check_file", methods=["GET"])
+def check_and_upload_file():
+    clientID = request.args.get("clientID")
+    if not clientID:
+        return jsonify({"error": "Missing clientID parameter"}), 400
+
     client_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
     server_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
 
     if os.path.exists(server_file_path):
         print(f"[INFO] File already exists on the server for client {clientID}.")
-        return True  # File exists
+        return jsonify({"message": "File exists"}), 200
     else:
         print(f"[WARNING] File not found on server. Uploading for client {clientID}...")
         try:
             shutil.copy(client_file_path, server_file_path)
             print("[SUCCESS] File uploaded successfully.")
-            return True  # File uploaded
+            return jsonify({"message": "File uploaded"}), 200
         except Exception as e:
             print(f"[ERROR] Failed to upload file: {e}")
-            return False  # Upload failed
+            return jsonify({"error": f"Upload failed: {e}"}), 500
 
 
 
 
 # TODO Test function transfer_to_database in mql5
-def transfer_to_database(clientID):
-    """Transfer data from the uploaded file to the SQLite database without duplication."""
-    
+# ✅ Expose transfer_to_database as API
+@app.route("/transfer_to_database", methods=["POST"])
+def transfer_to_database():
+    clientID = request.form.get("clientID")
+    if not clientID:
+        return jsonify({"error": "Missing clientID parameter"}), 400
+
     filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
-    
     if not os.path.exists(filepath):
-        print(f"[ERROR] File not found: {filepath}")
-        return False  # File missing
+        return jsonify({"error": f"File not found: {filepath}"}), 404
 
     print(f"[INFO] Starting database transfer for client {clientID}...")
 
     # Connect to SQLite database
     conn = sqlite3.connect(config.database_file_path)
     cur = conn.cursor()
-    
+
     # Optimize performance settings
     cur.execute("PRAGMA synchronous = OFF;")  
     cur.execute("PRAGMA journal_mode = WAL;")  
 
-    # Create table if it does not exist
-    cur.execute("""CREATE TABLE IF NOT EXISTS Trade_Transaction(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        open_time TEXT,
-        symbol TEXT,
-        magic_number INTEGER,
-        type TEXT,
-        volume REAL,
-        open_price REAL,
-        sl REAL,
-        tp REAL,
-        close_price REAL,
-        close_time TEXT,
-        commission REAL,
-        swap REAL,
-        profit REAL,
-        profit_points REAL,
-        duration TEXT,
-        open_comment TEXT,
-        close_comment TEXT,
-        UNIQUE (open_time, symbol, magic_number, type, volume, open_price, close_price, close_time) 
-    );""")  # UNIQUE constraint to prevent duplicates
+    # Create table if not exists
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS Trade_Transaction(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            open_time TEXT,
+            symbol TEXT,
+            magic_number INTEGER,
+            type TEXT,
+            volume REAL,
+            open_price REAL,
+            sl REAL,
+            tp REAL,
+            close_price REAL,
+            close_time TEXT,
+            commission REAL,
+            swap REAL,
+            profit REAL,
+            profit_points REAL,
+            duration TEXT,
+            open_comment TEXT,
+            close_comment TEXT,
+            UNIQUE (open_time, symbol, magic_number, type, volume, open_price, close_price, close_time)
+        );
+    """)
 
     conn.commit()
 
-    # Read the CSV file
+    # Read CSV file
     df = pd.read_csv(filepath)
     print(f"[INFO] Found {len(df)} rows in the CSV file.")
 
-    # Insert data in batches
     batch_size = 100
     data_batch = []
 
@@ -201,8 +211,10 @@ def transfer_to_database(clientID):
 
         if len(data_batch) >= batch_size:
             try:
-                cur.executemany('''INSERT OR IGNORE INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
+                cur.executemany('''INSERT OR IGNORE INTO Trade_Transaction 
+                    (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, 
+                    commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
                 conn.commit()
                 print(f"[INFO] Inserted {batch_size} rows (excluding duplicates).")
             except Exception as e:
@@ -212,8 +224,10 @@ def transfer_to_database(clientID):
     # Insert remaining data
     if data_batch:
         try:
-            cur.executemany('''INSERT OR IGNORE INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
+            cur.executemany('''INSERT OR IGNORE INTO Trade_Transaction 
+                (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, 
+                commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
             conn.commit()
             print(f"[INFO] Inserted final {len(data_batch)} rows (excluding duplicates).")
         except Exception as e:
@@ -221,20 +235,24 @@ def transfer_to_database(clientID):
 
     conn.close()
     print("[SUCCESS] Data transfer completed successfully.")
-    return True  # Success
+    return jsonify({"message": "Data transfer completed successfully"}), 200
+
+
 
 
 
     
 # TODO Test function check_row_count in mql5
-def check_row_count(clientID):
-    """Verify that the number of rows in the database matches the number of rows in the uploaded file."""
-    
+# ✅ Expose check_row_count as API
+@app.route("/check_row_count", methods=["GET"])
+def check_row_count():
+    clientID = request.args.get("clientID")
+    if not clientID:
+        return jsonify({"error": "Missing clientID parameter"}), 400
+
     filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
-    
     if not os.path.exists(filepath):
-        print(f"[ERROR] File not found: {filepath}")
-        return False  
+        return jsonify({"error": f"File not found: {filepath}"}), 404  
 
     # Read file row count
     df = pd.read_csv(filepath)
@@ -253,29 +271,39 @@ def check_row_count(clientID):
     else:
         print("[INFO] Row count matches. No reprocessing needed.")
 
-    return client_row_count == db_row_count  # Return True if counts match
+    return jsonify({"client_row_count": client_row_count, "db_row_count": db_row_count, "match": client_row_count == db_row_count}), 200
+
 
 
 
 
 # TODO Test function upload_transaction_to_db in mql5
-def upload_transaction_to_db(transaction_data):
-    """Upload a single transaction to the database."""
-    
+# ✅ Expose upload_transaction_to_db as API
+@app.route("/upload_transaction", methods=["POST"])
+def upload_transaction_to_db():
+    transaction_data = request.json
+    if not transaction_data:
+        return jsonify({"error": "Missing transaction data"}), 400
+
     conn = sqlite3.connect(config.database_file_path)
     cur = conn.cursor()
 
-    cur.execute('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
-                   (transaction_data['Open Time'], transaction_data['Symbol'], transaction_data['Magic Number'], 
-                    transaction_data['Type'], transaction_data['Volume'], transaction_data['Open Price'], 
-                    transaction_data['S/L'], transaction_data['T/P'], transaction_data['Close Price'], 
-                    transaction_data['Close Time'], transaction_data['Commission'], transaction_data['Swap'], 
-                    transaction_data['Profit'], transaction_data['Profit Points'], transaction_data['Duration'], 
-                    transaction_data['Open Comment'], transaction_data['Close Comment']))
+    cur.execute('''INSERT INTO Trade_Transaction 
+        (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+        (transaction_data['Open Time'], transaction_data['Symbol'], transaction_data['Magic Number'], 
+         transaction_data['Type'], transaction_data['Volume'], transaction_data['Open Price'], 
+         transaction_data['S/L'], transaction_data['T/P'], transaction_data['Close Price'], 
+         transaction_data['Close Time'], transaction_data['Commission'], transaction_data['Swap'], 
+         transaction_data['Profit'], transaction_data['Profit Points'], transaction_data['Duration'], 
+         transaction_data['Open Comment'], transaction_data['Close Comment']))
 
     conn.commit()
     conn.close()
+    return jsonify({"message": "Transaction uploaded successfully"}), 200
+
+
+
 
 # Upload a single transaction (when a transaction is completed)
 transaction_data = {
@@ -303,5 +331,4 @@ transaction_data = {
 
     
 if __name__ == "__main__":
-    # check_and_upload_file(1001)
     app.run(debug=True, host='0.0.0.0', port=5000)
