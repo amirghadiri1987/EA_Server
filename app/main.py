@@ -13,7 +13,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 18
+# 19
 
 # flask-login
 login_manager = LoginManager()
@@ -128,7 +128,7 @@ def check_and_upload_file():
 
     client_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
     server_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
-
+    print(f"{config.load_file_upload}/{clientID}/{config.name_file_upload}")
     if os.path.exists(server_file_path):
         print(f"[INFO] File already exists on the server for client {clientID}.")
         return jsonify({"message": "File exists"}), 200
