@@ -8,3 +8,7 @@ PASSWORD = 'password'
 
 # generate one strong secret key for flask
 SECRET_KEY = 'random long string eith alphanumeric / #()*&'
+
+# do not change below unless you know what you are doin
+UPLOAD_FOLDER = '../ServerUpload'
+ALLOWED_EXTENSIONS = {'csv'}
