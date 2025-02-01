@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, Response, redirect, url_for, session, abort
+from flask import Flask, flash, request, jsonify, Response, redirect, url_for, session, abort
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user 
 from werkzeug.utils import secure_filename
 import os
@@ -8,6 +8,10 @@ import pandas as pd
 import config
 
 app = Flask(__name__)
+UPLOAD_FOLDER = config.load_file_upload
+ALLOWED_EXTENSIONS = config.allowed_extensions
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 
 # 12
 
@@ -15,6 +19,10 @@ app = Flask(__name__)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # config
 app.config.update(
@@ -109,21 +117,24 @@ def hello_world():
 
 # TODO Test function check_and_upload_file in mql5
 def check_and_upload_file(clientID):
-    """Check if the Excel file exists on the server and upload it if not."""
+    """Ensure the transaction file exists on the server; upload if missing."""
     
-    # File path on the client's system and on the server
     client_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
     server_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
 
-    if not os.path.exists(server_file_path):  # Check if file exists on server
-        print(f"File not found on server. Uploading file for client {clientID}...")
-        
-        # Logic to upload file from client system to server (may depend on how the client is transferring the file)
-        # For example, copying the file from a local directory
-        shutil.copy(client_file_path, server_file_path)
-        print("File uploaded successfully.")
+    if os.path.exists(server_file_path):
+        print(f"[INFO] File already exists on the server for client {clientID}.")
+        return True  # File exists
     else:
-        print(f"File already exists on the server for client {clientID}.")
+        print(f"[WARNING] File not found on server. Uploading for client {clientID}...")
+        try:
+            shutil.copy(client_file_path, server_file_path)
+            print("[SUCCESS] File uploaded successfully.")
+            return True  # File uploaded
+        except Exception as e:
+            print(f"[ERROR] Failed to upload file: {e}")
+            return False  # Upload failed
+
 
 
 
@@ -202,8 +213,6 @@ def transfer_to_database(clientID):
 
     conn.close()
     print("[SUCCESS] Data transfer completed successfully!")
-
-
     
 # TODO Test function check_row_count in mql5
 def check_row_count(clientID):
@@ -282,6 +291,5 @@ transaction_data = {
 
     
 if __name__ == "__main__":
-    transfer_to_database(1001)
-    check_row_count(1001)
+    check_and_upload_file(1001)
     app.run(debug=True, host='0.0.0.0', port=5000)
