@@ -116,7 +116,6 @@ def hello_world():
     return "<p>Hello, World!</p>"
 
 # TODO Test function check_and_upload_file in mql5
-@app.route("/check_file", methods=["GET"])
 def check_and_upload_file(clientID):
     """Ensure the transaction file exists on the server; upload if missing."""
     
@@ -141,27 +140,28 @@ def check_and_upload_file(clientID):
 
 # TODO Test function transfer_to_database in mql5
 def transfer_to_database(clientID):
-    """Transfers data from the uploaded Excel file to the database efficiently, with progress updates."""
+    """Transfer data from the uploaded file to the SQLite database without duplication."""
     
     filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
     
     if not os.path.exists(filepath):
         print(f"[ERROR] File not found: {filepath}")
-        return
-    
+        return False  # File missing
+
     print(f"[INFO] Starting database transfer for client {clientID}...")
 
-    # Create connection and optimize performance settings
+    # Connect to SQLite database
     conn = sqlite3.connect(config.database_file_path)
     cur = conn.cursor()
     
+    # Optimize performance settings
     cur.execute("PRAGMA synchronous = OFF;")  
     cur.execute("PRAGMA journal_mode = WAL;")  
 
-    # Create table if not exists
+    # Create table if it does not exist
     cur.execute("""CREATE TABLE IF NOT EXISTS Trade_Transaction(
-        id INTEGER PRIMARY KEY,
-        open_time DATE,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        open_time TEXT,
         symbol TEXT,
         magic_number INTEGER,
         type TEXT,
@@ -170,22 +170,24 @@ def transfer_to_database(clientID):
         sl REAL,
         tp REAL,
         close_price REAL,
-        close_time DATE,
+        close_time TEXT,
         commission REAL,
         swap REAL,
         profit REAL,
         profit_points REAL,
         duration TEXT,
         open_comment TEXT,
-        close_comment TEXT);""")
+        close_comment TEXT,
+        UNIQUE (open_time, symbol, magic_number, type, volume, open_price, close_price, close_time) 
+    );""")  # UNIQUE constraint to prevent duplicates
 
     conn.commit()
-    print("[INFO] Database and table are ready.")
 
     # Read the CSV file
     df = pd.read_csv(filepath)
     print(f"[INFO] Found {len(df)} rows in the CSV file.")
 
+    # Insert data in batches
     batch_size = 100
     data_batch = []
 
@@ -197,53 +199,62 @@ def transfer_to_database(clientID):
             row['Open Comment'], row['Close Comment']
         ))
 
-        # Commit every batch_size rows
         if len(data_batch) >= batch_size:
-            cur.executemany('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
-            conn.commit()
-            print(f"[INFO] Inserted {batch_size} rows into the database.")
+            try:
+                cur.executemany('''INSERT OR IGNORE INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
+                conn.commit()
+                print(f"[INFO] Inserted {batch_size} rows (excluding duplicates).")
+            except Exception as e:
+                print(f"[ERROR] Failed to insert batch: {e}")
             data_batch = []  
 
-    # Insert any remaining data
+    # Insert remaining data
     if data_batch:
-        cur.executemany('''INSERT INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
-        conn.commit()
-        print(f"[INFO] Inserted final {len(data_batch)} rows into the database.")
+        try:
+            cur.executemany('''INSERT OR IGNORE INTO Trade_Transaction (open_time, symbol, magic_number, type, volume, open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, open_comment, close_comment)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data_batch)
+            conn.commit()
+            print(f"[INFO] Inserted final {len(data_batch)} rows (excluding duplicates).")
+        except Exception as e:
+            print(f"[ERROR] Failed to insert final batch: {e}")
 
     conn.close()
-    print("[SUCCESS] Data transfer completed successfully!")
+    print("[SUCCESS] Data transfer completed successfully.")
+    return True  # Success
+
+
+
     
 # TODO Test function check_row_count in mql5
 def check_row_count(clientID):
-    """Check if the number of rows in the database matches the number of rows in the Excel file."""
+    """Verify that the number of rows in the database matches the number of rows in the uploaded file."""
     
-    # File path on the server
     filepath = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
     
-    # Read the CSV file
+    if not os.path.exists(filepath):
+        print(f"[ERROR] File not found: {filepath}")
+        return False  
+
+    # Read file row count
     df = pd.read_csv(filepath)
     client_row_count = len(df)
 
-    # Connect to the database
+    # Get row count from database
     conn = sqlite3.connect(config.database_file_path)
     cur = conn.cursor()
-
-    # Get the row count from the database
     cur.execute("SELECT COUNT(*) FROM Trade_Transaction")
     db_row_count = cur.fetchone()[0]
-    
-    # Close the connection
     conn.close()
 
-    # If the row counts don't match, re-upload and re-process the file
     if client_row_count != db_row_count:
-        print(f"Row count mismatch: Client has {client_row_count} rows, database has {db_row_count} rows.")
-        check_and_upload_file(clientID)
-        transfer_to_database(clientID)
+        print(f"[WARNING] Row count mismatch: CSV={client_row_count}, DB={db_row_count}. Reprocessing...")
+        transfer_to_database(clientID)  # Reprocess if mismatch
     else:
-        print("Row count matches, no need to re-upload.")
+        print("[INFO] Row count matches. No reprocessing needed.")
+
+    return client_row_count == db_row_count  # Return True if counts match
+
 
 
 
@@ -292,5 +303,5 @@ transaction_data = {
 
     
 if __name__ == "__main__":
-    check_and_upload_file(1001)
+    # check_and_upload_file(1001)
     app.run(debug=True, host='0.0.0.0', port=5000)
