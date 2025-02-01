@@ -10,5 +10,4 @@ PASSWORD = 'password'
 SECRET_KEY = 'random long string eith alphanumeric / #()*&'
 
 # do not change below unless you know what you are doin
-UPLOAD_FOLDER = '../ServerUpload'
-ALLOWED_EXTENSIONS = {'csv'}
+allowed_extensions = {'csv'}
