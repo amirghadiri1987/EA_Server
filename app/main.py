@@ -13,7 +13,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 16
+# 17
 
 # flask-login
 login_manager = LoginManager()
@@ -116,7 +116,7 @@ def hello_world():
     return "<p>Hello, World!</p>"
 
 # TODO Test function check_and_upload_file in mql5
-@app.route("/check_file")
+@app.route("/check_file", methods=["GET"])
 def check_and_upload_file(clientID):
     """Ensure the transaction file exists on the server; upload if missing."""
     
