@@ -79,3 +79,8 @@ deboger
 	import pdb; pdb.set_trace()
 	requist.
 	dir(requist)
+# 1️⃣ Check if another vi session is running:
+  1. Run this command to find any active vi processes:
+[] ps aux | grep vi
+  2. [] kill -9 <PID>
+
