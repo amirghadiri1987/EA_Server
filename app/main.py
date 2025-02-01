@@ -13,7 +13,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 19
+# 20
 
 # flask-login
 login_manager = LoginManager()
@@ -120,27 +120,23 @@ def hello_world():
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
-@app.route("/check_file", methods=["GET"])
-def check_and_upload_file():
-    clientID = request.args.get("clientID")
-    if not clientID:
-        return jsonify({"error": "Missing clientID parameter"}), 400
+@app.route("/upload_file", methods=["POST"])
+def upload_file():
+    client_id = request.form.get("clientID")
+    file = request.files.get("file")
 
-    client_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
-    server_file_path = f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
-    print(f"{config.load_file_upload}/{clientID}/{config.name_file_upload}")
-    if os.path.exists(server_file_path):
-        print(f"[INFO] File already exists on the server for client {clientID}.")
-        return jsonify({"message": "File exists"}), 200
-    else:
-        print(f"[WARNING] File not found on server. Uploading for client {clientID}...")
-        try:
-            shutil.copy(client_file_path, server_file_path)
-            print("[SUCCESS] File uploaded successfully.")
-            return jsonify({"message": "File uploaded"}), 200
-        except Exception as e:
-            print(f"[ERROR] Failed to upload file: {e}")
-            return jsonify({"error": f"Upload failed: {e}"}), 500
+    if not client_id or not file:
+        return jsonify({"error": "Missing clientID or file"}), 400
+
+    save_path = os.path.join(config.load_file_upload, client_id, config.name_file_upload)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    try:
+        file.save(save_path)
+        return jsonify({"message": "File uploaded successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
+
 
 
 
