@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, Response, redirect, url_for, session, abort
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user 
+from werkzeug.utils import secure_filename
 import os
 import shutil
 import sqlite3
@@ -8,7 +9,7 @@ import config
 
 app = Flask(__name__)
 
-# 14
+# 12
 
 # flask-login
 login_manager = LoginManager()
@@ -49,7 +50,7 @@ def login():
         password = request.form['password']        
         if password == config.PASSWORD and username == config.USERNAME:
             login_user(user)
-            return redirect(request.args.get("next")) #TODO: check url validity
+            return redirect('/') 
         else:
             return abort(401)
     else:
