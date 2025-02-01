@@ -116,6 +116,7 @@ def hello_world():
     return "<p>Hello, World!</p>"
 
 # TODO Test function check_and_upload_file in mql5
+@app.route("/check_file?")
 def check_and_upload_file(clientID):
     """Ensure the transaction file exists on the server; upload if missing."""
     
