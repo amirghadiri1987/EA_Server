@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 35
+# 36
 
 # flask-login
 login_manager = LoginManager()
@@ -197,6 +197,7 @@ def check_and_upload():
     # Save CSV data to database and delete the file
     result = save_csv_to_database(client_id, csv_path)
     if isinstance(result, int):
+        print("File uploaded, saved to database, and deleted", "rows_saved")
         return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
     else:
         return jsonify({"error": f"Failed to process file: {result}"}), 500
