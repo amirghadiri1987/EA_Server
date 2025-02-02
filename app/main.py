@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 27
+# 29
 
 # flask-login
 login_manager = LoginManager()
@@ -123,34 +123,6 @@ def hello_world():
 
 
 
-
-
-
-
-@app.route('/check_csv', methods=['GET'])
-def check_csv():
-    client_id = request.args.get('clientID')
-    file_name = request.args.get('fileName')
-
-    if not client_id or not file_name:
-        return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
-
-    file_path = os.path.join(config.load_file_upload, client_id, file_name)
-
-    if os.path.exists(file_path):
-        return jsonify({
-            'status': 'success',
-            'message': f"File {file_name} found for client {client_id}",
-            'file_path': file_path
-        }), 200
-    else:
-        return jsonify({
-            'status': 'fail',
-            'message': f"File {file_name} not found for client {client_id}",
-            'file_path': file_path
-        }), 404
-
-
 # TODO Test function check_row_count in mql5
 # ✅ Expose check_row_count as API
 def check_row_count(clientID):
@@ -161,76 +133,39 @@ def allowed_file(filename):
     """Check if file has allowed extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in config.allowed_extensions
 
-
+# Function to check if the file exists
+def file_exists(client_id):
+    file_path = os.path.join(config.UPLOAD_DIR, client_id, config.CSV_FILENAME)
+    return os.path.exists(file_path)
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
-@app.route('/upload_file', methods=['POST'])
-def upload_file():
-    # Get the client ID from the query parameters
-    client_id = request.args.get('clientID')
+@app.route("/check_file", methods=["POST"])
+def check_and_upload():
+    client_id = request.form.get("clientID")
     if not client_id:
-        return jsonify({"error": "clientID is required"}), 400
+        return jsonify({"error": "Missing clientID"}), 400
 
-    # Create the client folder if it doesn't exist
-    client_folder = os.path.join(config.load_file_upload, client_id)
-    os.makedirs(client_folder, exist_ok=True)
+    client_folder = os.path.join(config.UPLOAD_DIR, client_id)
+    os.makedirs(client_folder, exist_ok=True)  # Create folder if not exists
 
-    # Save the uploaded file
-    file_path = os.path.join(client_folder, "Trade_Transaction.csv")
-    with open(file_path, 'wb') as f:
-        f.write(request.data)
+    # Check if file exists
+    if file_exists(client_id):
+        return jsonify({"message": "File already exists"}), 200
 
-    # Process the file into the database
-    try:
-        conn = sqlite3.connect("trade_data.sqlite")
-        cursor = conn.cursor()
+    # Check if file is provided
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
 
-        # Create the table if it doesn't exist
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS trade_transactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                open_time TEXT,
-                symbol TEXT,
-                magic_number INTEGER,
-                type TEXT,
-                volume REAL,
-                open_price REAL,
-                sl REAL,
-                tp REAL,
-                close_price REAL,
-                close_time TEXT,
-                commission REAL,
-                swap REAL,
-                profit REAL,
-                profit_points REAL,
-                duration TEXT,
-                open_comment TEXT,
-                close_comment TEXT
-            )
-        ''')
+    file = request.files["file"]
 
-        # Load the CSV data into the database
-        with open(file_path, 'r') as file:
-            csv_reader = csv.reader(file)
-            next(csv_reader)  # Skip the header row
-            for row in csv_reader:
-                cursor.execute('''
-                    INSERT INTO trade_transactions (
-                        open_time, symbol, magic_number, type, volume, open_price,
-                        sl, tp, close_price, close_time, commission, swap, profit,
-                        profit_points, duration, open_comment, close_comment
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', row)
+    # Validate file type
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type"}), 400
 
-        conn.commit()
-        conn.close()
-
-        return jsonify({"message": "File uploaded and processed successfully"}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Save file
+    file.save(os.path.join(client_folder, config.CSV_FILENAME))
+    return jsonify({"message": "File uploaded successfully"}), 201
     
 
 
