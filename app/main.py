@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 31
+# 32
 
 # flask-login
 login_manager = LoginManager()
@@ -168,8 +168,45 @@ def check_and_upload():
         return jsonify({"error": "Invalid file type"}), 400
 
     # Save the CSV file
-    file.save(os.path.join(client_folder, config.CSV_FILENAME))
-    return jsonify({"message": "File uploaded successfully"}), 201
+    csv_path = os.path.join(client_folder, config.CSV_FILENAME)
+    file.save(csv_path)
+
+    # Save CSV data to database and delete the file
+    result = save_csv_to_database(client_id, csv_path)
+    if result is True:
+        return jsonify({"message": "File uploaded, saved to database, and deleted"}), 201
+    else:
+        return jsonify({"error": f"Failed to process file: {result}"}), 500
+
+
+# @app.route("/check_file", methods=["POST"])
+# def check_and_upload():
+#     client_id = request.form.get("clientID")
+#     if not client_id:
+#         return jsonify({"error": "Missing clientID"}), 400
+
+#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
+#     os.makedirs(client_folder, exist_ok=True)  # Create folder if not exists
+
+#     # Check if the database exists
+#     if database_exists(client_id):
+#         return jsonify({"message": "Database already exists"}), 200
+
+#     # Check if a file is provided
+#     if "file" not in request.files:
+#         return jsonify({"error": "No file provided"}), 400
+
+#     file = request.files["file"]
+
+#     # Validate file type
+#     if not allowed_file(file.filename):
+#         return jsonify({"error": "Invalid file type"}), 400
+
+#     # Save the CSV file
+#     file.save(os.path.join(client_folder, config.CSV_FILENAME))
+#     return jsonify({"message": "File uploaded successfully"}), 201
+
+
 # @app.route("/check_file", methods=["POST"])
 # def check_and_upload():
 #     client_id = request.form.get("clientID")
@@ -205,9 +242,23 @@ def check_and_upload():
 
 # TODO Test function transfer_to_database in mql5
 # ✅ Expose transfer_to_database as API
-def transfer_to_database(clientID):
-    pass
+def save_csv_to_database(client_id, csv_path):
+    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
 
+    try:
+        # Read CSV into Pandas DataFrame
+        df = pd.read_csv(csv_path)
+
+        # Connect to SQLite database (or create if not exists)
+        conn = sqlite3.connect(db_path)
+        df.to_sql("trades", conn, if_exists="replace", index=False)  # Save CSV as table "trades"
+        conn.close()
+
+        # Delete the CSV file after successful insertion
+        os.remove(csv_path)
+        return True
+    except Exception as e:
+        return str(e)
 
 
 
