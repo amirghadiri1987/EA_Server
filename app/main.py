@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 33
+# 34
 
 # flask-login
 login_manager = LoginManager()
@@ -125,20 +125,34 @@ def hello_world():
 
 # TODO Test function check_row_count in mql5
 # ✅ Expose check_row_count as API
-def count_database_rows(client_id):
-    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
-    if not os.path.exists(db_path):
-        return 0
+def get_database_row_count(client_id):
+    """Retrieve the number of rows in the trade_data table."""
+    if not os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME):
+        return 0  # Database does not exist
     
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM trades")
-        row_count = cursor.fetchone()[0]
-        conn.close()
-        return row_count
-    except:
-        return 0
+    conn = sqlite3.connect(config.DATABASE_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM trade_data")
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+# def count_database_rows(client_id):
+#     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+#     if not os.path.exists(db_path):
+#         return 0
+    
+#     try:
+#         conn = sqlite3.connect(db_path)
+#         cursor = conn.cursor()
+#         cursor.execute("SELECT COUNT(*) FROM trades")
+#         row_count = cursor.fetchone()[0]
+#         conn.close()
+#         return row_count
+#     except:
+#         return 0
+    
+
 
 
 def allowed_file(filename):
@@ -159,45 +173,88 @@ def database_exists(client_id):
 @app.route("/check_and_upload", methods=["POST"])
 def check_and_upload():
     client_id = request.form.get("clientID")
-    rows_mql5 = request.form.get("rows_count")
+    rows_count = int(request.form.get("rows_count", 0))  # Get expected row count
 
-    if not client_id or rows_mql5 is None:
-        return jsonify({"error": "Missing clientID or rows_count"}), 400
+    if not client_id:
+        return jsonify({"error": "Missing clientID"}), 400
 
-    try:
-        rows_mql5 = int(rows_mql5)
-    except ValueError:
-        return jsonify({"error": "Invalid rows_count"}), 400
-
-    client_folder = os.path.join(config.UPLOAD_DIR, client_id)
+    client_folder = os.path.join(UPLOAD_FOLDER, client_id)
     os.makedirs(client_folder, exist_ok=True)
 
-    rows_db = count_database_rows(client_id)
+    # Check database row count
+    db_rows = get_database_row_count()
+    if db_rows == rows_count:
+        return jsonify({"message": "No upload needed, database already up-to-date."}), 200
 
-    # If database exists and row count is equal, do nothing
-    if database_exists(client_id) and rows_db == rows_mql5:
-        return jsonify({"message": "No need to upload. Data is up-to-date.", "rows": rows_db}), 200
-
-    # If no file is provided, return an error
+    # Ensure file exists in the request
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
     file = request.files["file"]
 
-    # Validate file type
-    if not allowed_file(file.filename):
-        return jsonify({"error": "Invalid file type"}), 400
-
     # Save file temporarily
-    csv_path = os.path.join(client_folder, config.CSV_FILENAME)
-    file.save(csv_path)
+    file_path = os.path.join(client_folder, config.CSV_FILENAME)
+    file.save(file_path)
 
-    # Save CSV data to database and delete the file
-    result = save_csv_to_database(client_id, csv_path)
-    if isinstance(result, int):
-        return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
-    else:
-        return jsonify({"error": f"Failed to process file: {result}"}), 500
+    # Load file into database
+    try:
+        df = pd.read_csv(file_path)
+        conn = sqlite3.connect(config.DATABASE_FILE)
+        df.to_sql("trade_data", conn, if_exists="append", index=False)
+        conn.commit()
+        conn.close()
+
+        # Remove file after processing
+        os.remove(file_path)
+        
+        return jsonify({"message": "File uploaded and stored in database successfully."}), 201
+    except Exception as e:
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+
+
+# @app.route("/check_and_upload", methods=["POST"])
+# def check_and_upload():
+#     client_id = request.form.get("clientID")
+#     rows_mql5 = request.form.get("rows_count")
+
+#     if not client_id or rows_mql5 is None:
+#         return jsonify({"error": "Missing clientID or rows_count"}), 400
+
+#     try:
+#         rows_mql5 = int(rows_mql5)
+#     except ValueError:
+#         return jsonify({"error": "Invalid rows_count"}), 400
+
+#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
+#     os.makedirs(client_folder, exist_ok=True)
+
+#     rows_db = count_database_rows(client_id)
+
+#     # If database exists and row count is equal, do nothing
+#     if database_exists(client_id) and rows_db == rows_mql5:
+#         return jsonify({"message": "No need to upload. Data is up-to-date.", "rows": rows_db}), 200
+
+#     # If no file is provided, return an error
+#     if "file" not in request.files:
+#         return jsonify({"error": "No file provided"}), 400
+
+#     file = request.files["file"]
+
+#     # Validate file type
+#     if not allowed_file(file.filename):
+#         return jsonify({"error": "Invalid file type"}), 400
+
+#     # Save file temporarily
+#     csv_path = os.path.join(client_folder, config.CSV_FILENAME)
+#     file.save(csv_path)
+
+#     # Save CSV data to database and delete the file
+#     result = save_csv_to_database(client_id, csv_path)
+#     if isinstance(result, int):
+#         return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
+#     else:
+#         return jsonify({"error": f"Failed to process file: {result}"}), 500
 
 
 
