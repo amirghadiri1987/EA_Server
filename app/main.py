@@ -10,12 +10,12 @@ from werkzeug.utils import secure_filename
 
 
 app = Flask(__name__)
-UPLOAD_FOLDER = config.load_file_upload
+UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 29
+# 30
 
 # flask-login
 login_manager = LoginManager()
