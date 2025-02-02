@@ -1,6 +1,6 @@
 # address upload
-load_file_upload = 'Put your address of the directory to upload the CSV files'
-database_file_path = 'path to the file which is used by sqlite'
+UPLOAD_DIR = 'Put your address of the directory to upload the CSV files'
+CSV_FILENAME = 'path to the file which is used by sqlite'
 
 # login cedentials
 USERNAME = 'username'
