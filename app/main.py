@@ -13,7 +13,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 23
+# 25
 
 # flask-login
 login_manager = LoginManager()
@@ -127,23 +127,62 @@ def check_row_count(clientID):
     pass
 
 
+def allowed_file(filename):
+    """Check if file has allowed extension."""
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in config.allowed_extensions
+
+
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
-@app.route('/check_file', methods=['GET'])
-def check_file():
-    client_id = request.args.get('clientID')
-    
+@app.route("/check_file", methods=["GET", "POST"])
+def check_and_upload_file():
+    client_id = request.args.get("clientID")
     if not client_id:
         return jsonify({"error": "Missing clientID"}), 400
 
     client_folder = os.path.join(config.load_file_upload, client_id)
     file_path = os.path.join(client_folder, config.name_file_upload)
 
-    if os.path.exists(file_path):
-        return jsonify({"message": "File exists"}), 200
-    else:
-        return jsonify({"message": "File does not exist"}), 404
+    if request.method == "GET":
+        # Check if file exists
+        if os.path.exists(file_path):
+            return jsonify({"message": "File exists"}), 200
+        else:
+            return jsonify({"error": "File not found"}), 404
+
+    elif request.method == "POST":
+        # Ensure client folder exists
+        os.makedirs(client_folder, exist_ok=True)
+
+        # Check if file was sent
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+
+        file = request.files["file"]
+
+        # Validate file extension
+        if not allowed_file(file.filename):
+            return jsonify({"error": "Invalid file type"}), 400
+
+        # Save file to client folder
+        file.save(file_path)
+        return jsonify({"message": "File uploaded successfully"}), 201
+
+# @app.route('/check_file', methods=['GET'])
+# def check_file():
+#     client_id = request.args.get('clientID')
+    
+#     if not client_id:
+#         return jsonify({"error": "Missing clientID"}), 400
+
+#     client_folder = os.path.join(config.load_file_upload, client_id)
+#     file_path = os.path.join(client_folder, config.name_file_upload)
+
+#     if os.path.exists(file_path):
+#         return jsonify({"message": "File exists"}), 200
+#     else:
+#         return jsonify({"message": "File does not exist"}), 404
     
 
 
