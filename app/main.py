@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 26
+# 27
 
 # flask-login
 login_manager = LoginManager()
@@ -137,89 +137,72 @@ def allowed_file(filename):
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
-def check_and_upload_database(client_id):
-    """
-    Check if the database exists on the server. If not, upload the CSV file.
-    Also, create a unique client folder for the client.
-    
-    Args:
-        client_id (str or int): Unique client ID (e.g., 1001).
-    """
-    # Create the client-specific directory
-    client_folder = os.path.join(config.load_file_upload, str(client_id))
-    os.makedirs(client_folder, exist_ok=True)
-    print(f"Created client folder: {client_folder}")
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+    # Get the client ID from the query parameters
+    client_id = request.args.get('clientID')
+    if not client_id:
+        return jsonify({"error": "clientID is required"}), 400
 
-    # Check if the database exists
-    if not os.path.exists(config.name_database_file_path):
-        print("Database does not exist. Uploading the CSV file...")
-        
-        # Path to the CSV file in the client folder
-        csv_file_path = os.path.join(client_folder, config.name_file_upload)
-        
-        # Check if the CSV file exists in the client folder
-        if not os.path.exists(csv_file_path):
-            print(f"CSV file not found in {client_folder}. Please ensure the file is uploaded.")
-            return
-        
-        # Create the SQLite database and load the CSV data
-        try:
-            # Connect to the SQLite database (or create it if it doesn't exist)
-            conn = sqlite3.connect(config.name_database_file_path)
-            cursor = conn.cursor()
-            
-            # Create a table to store the CSV data
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS trade_transactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    open_time TEXT,
-                    symbol TEXT,
-                    magic_number INTEGER,
-                    type TEXT,
-                    volume REAL,
-                    open_price REAL,
-                    sl REAL,
-                    tp REAL,
-                    close_price REAL,
-                    close_time TEXT,
-                    commission REAL,
-                    swap REAL,
-                    profit REAL,
-                    profit_points REAL,
-                    duration TEXT,
-                    open_comment TEXT,
-                    close_comment TEXT
-                )
-            ''')
-            
-            # Load the CSV data into the database
-            with open(csv_file_path, 'r') as file:
-                # Read the CSV file
-                csv_reader = csv.reader(file)
-                # Skip the header row
-                next(csv_reader)
-                for row in csv_reader:
-                    # Insert each row into the database
-                    cursor.execute('''
-                        INSERT INTO trade_transactions (
-                            open_time, symbol, magic_number, type, volume, open_price,
-                            sl, tp, close_price, close_time, commission, swap, profit,
-                            profit_points, duration, open_comment, close_comment
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', row)
-            
-            conn.commit()
-            print("CSV data successfully uploaded to the database.")
-        
-        except Exception as e:
-            print(f"Error uploading CSV data to the database: {e}")
-        
-        finally:
-            if conn:
-                conn.close()
-    else:
-        print("Database already exists. No action needed.")
+    # Create the client folder if it doesn't exist
+    client_folder = os.path.join(config.load_file_upload, client_id)
+    os.makedirs(client_folder, exist_ok=True)
+
+    # Save the uploaded file
+    file_path = os.path.join(client_folder, "Trade_Transaction.csv")
+    with open(file_path, 'wb') as f:
+        f.write(request.data)
+
+    # Process the file into the database
+    try:
+        conn = sqlite3.connect("trade_data.sqlite")
+        cursor = conn.cursor()
+
+        # Create the table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS trade_transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                open_time TEXT,
+                symbol TEXT,
+                magic_number INTEGER,
+                type TEXT,
+                volume REAL,
+                open_price REAL,
+                sl REAL,
+                tp REAL,
+                close_price REAL,
+                close_time TEXT,
+                commission REAL,
+                swap REAL,
+                profit REAL,
+                profit_points REAL,
+                duration TEXT,
+                open_comment TEXT,
+                close_comment TEXT
+            )
+        ''')
+
+        # Load the CSV data into the database
+        with open(file_path, 'r') as file:
+            csv_reader = csv.reader(file)
+            next(csv_reader)  # Skip the header row
+            for row in csv_reader:
+                cursor.execute('''
+                    INSERT INTO trade_transactions (
+                        open_time, symbol, magic_number, type, volume, open_price,
+                        sl, tp, close_price, close_time, commission, swap, profit,
+                        profit_points, duration, open_comment, close_comment
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', row)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"message": "File uploaded and processed successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     
 
 
