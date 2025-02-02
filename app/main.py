@@ -123,6 +123,34 @@ def hello_world():
 
 
 
+
+
+
+
+@app.route('/check_csv', methods=['GET'])
+def check_csv():
+    client_id = request.args.get('clientID')
+    file_name = request.args.get('fileName')
+
+    if not client_id or not file_name:
+        return jsonify({'status': 'fail', 'message': 'Missing clientID or fileName'}), 400
+
+    file_path = os.path.join(config.load_file_upload, client_id, file_name)
+
+    if os.path.exists(file_path):
+        return jsonify({
+            'status': 'success',
+            'message': f"File {file_name} found for client {client_id}",
+            'file_path': file_path
+        }), 200
+    else:
+        return jsonify({
+            'status': 'fail',
+            'message': f"File {file_name} not found for client {client_id}",
+            'file_path': file_path
+        }), 404
+
+
 # TODO Test function check_row_count in mql5
 # ✅ Expose check_row_count as API
 def check_row_count(clientID):
