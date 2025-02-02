@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 30
+# 31
 
 # flask-login
 login_manager = LoginManager()
@@ -133,10 +133,14 @@ def allowed_file(filename):
     """Check if file has allowed extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in config.allowed_extensions
 
-# Function to check if the file exists
-def file_exists(client_id):
-    file_path = os.path.join(config.UPLOAD_DIR, client_id, config.CSV_FILENAME)
-    return os.path.exists(file_path)
+# # Function to check if the file exists
+# def file_exists(client_id):
+#     file_path = os.path.join(config.UPLOAD_DIR, client_id, config.CSV_FILENAME)
+#     return os.path.exists(file_path)
+# Function to check if the database exists
+def database_exists(client_id):
+    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+    return os.path.exists(db_path)
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
@@ -149,11 +153,11 @@ def check_and_upload():
     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
     os.makedirs(client_folder, exist_ok=True)  # Create folder if not exists
 
-    # Check if file exists
-    if file_exists(client_id):
-        return jsonify({"message": "File already exists"}), 200
+    # Check if the database exists
+    if database_exists(client_id):
+        return jsonify({"message": "Database already exists"}), 200
 
-    # Check if file is provided
+    # Check if a file is provided
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -163,9 +167,35 @@ def check_and_upload():
     if not allowed_file(file.filename):
         return jsonify({"error": "Invalid file type"}), 400
 
-    # Save file
+    # Save the CSV file
     file.save(os.path.join(client_folder, config.CSV_FILENAME))
     return jsonify({"message": "File uploaded successfully"}), 201
+# @app.route("/check_file", methods=["POST"])
+# def check_and_upload():
+#     client_id = request.form.get("clientID")
+#     if not client_id:
+#         return jsonify({"error": "Missing clientID"}), 400
+
+#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
+#     os.makedirs(client_folder, exist_ok=True)  # Create folder if not exists
+
+#     # Check if file exists
+#     if file_exists(client_id):
+#         return jsonify({"message": "File already exists"}), 200
+
+#     # Check if file is provided
+#     if "file" not in request.files:
+#         return jsonify({"error": "No file provided"}), 400
+
+#     file = request.files["file"]
+
+#     # Validate file type
+#     if not allowed_file(file.filename):
+#         return jsonify({"error": "Invalid file type"}), 400
+
+#     # Save file
+#     file.save(os.path.join(client_folder, config.CSV_FILENAME))
+#     return jsonify({"message": "File uploaded successfully"}), 201
     
 
 
