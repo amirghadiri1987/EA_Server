@@ -13,7 +13,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 21
+# 22
 
 # flask-login
 login_manager = LoginManager()
@@ -118,61 +118,33 @@ def hello_world():
 
 
 
-def get_client_file_path(clientID):
-    """Returns the file path for the given client ID."""
-    return f"{config.load_file_upload}/{clientID}/{config.name_file_upload}"
 
 
 
 # TODO Test function check_row_count in mql5
 # ✅ Expose check_row_count as API
 def check_row_count(clientID):
-    """Checks if the number of rows in the database matches the Excel file."""
-    filepath = get_client_file_path(clientID)
-
-    if not os.path.exists(filepath):
-        print(f"[ERROR] File not found: {filepath}")
-        return False  
-
-    df = pd.read_csv(filepath)
-    client_row_count = len(df)
-
-    conn = sqlite3.connect(config.database_file_path)
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM Trade_Transaction WHERE clientID = ?", (clientID,))
-    db_row_count = cur.fetchone()[0]
-    conn.close()
-
-    return client_row_count == db_row_count  # True if counts match
+    pass
 
 
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
-@app.route("/check_file", methods=["POST"])
-def check_and_upload_file():
-    """Checks row count, uploads if necessary, transfers to DB, then deletes file."""
-    clientID = request.form.get("clientID")
-    file = request.files.get("file")
+@app.route('/check_file', methods=['GET'])
+def check_file():
+    client_id = request.args.get('clientID')
+    
+    if not client_id:
+        return jsonify({"error": "Missing clientID"}), 400
 
-    if not clientID or not file:
-        return jsonify({"error": "Missing clientID or file"}), 400
+    client_folder = os.path.join(config.load_file_upload, client_id)
+    file_path = os.path.join(client_folder, config.name_file_upload)
 
-    client_dir = f"{config.load_file_upload}/{clientID}"
-    os.makedirs(client_dir, exist_ok=True)
-    filepath = get_client_file_path(clientID)
-
-    file.save(filepath)
-
-    if check_row_count(clientID):
-        print("[INFO] Row count matches. Skipping upload.")
-        os.remove(filepath)
-        return jsonify({"message": "Row count matches. No upload needed."}), 200
-
-    transfer_to_database(clientID)
-    os.remove(filepath)
-
-    return jsonify({"message": "File uploaded and transferred to DB successfully."}), 200
+    if os.path.exists(file_path):
+        return jsonify({"message": "File exists"}), 200
+    else:
+        return jsonify({"message": "File does not exist"}), 404
+    
 
 
 
@@ -182,68 +154,7 @@ def check_and_upload_file():
 # TODO Test function transfer_to_database in mql5
 # ✅ Expose transfer_to_database as API
 def transfer_to_database(clientID):
-    """Transfers data from the uploaded file to the SQLite database without duplication."""
-    filepath = get_client_file_path(clientID)
-
-    if not os.path.exists(filepath):
-        print(f"[ERROR] File not found: {filepath}")
-        return False  
-
-    conn = sqlite3.connect(config.database_file_path)
-    cur = conn.cursor()
-
-    cur.execute("""CREATE TABLE IF NOT EXISTS Trade_Transaction(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        clientID TEXT,
-        open_time TEXT,
-        symbol TEXT,
-        magic_number INTEGER,
-        type TEXT,
-        volume REAL,
-        open_price REAL,
-        sl REAL,
-        tp REAL,
-        close_price REAL,
-        close_time TEXT,
-        commission REAL,
-        swap REAL,
-        profit REAL,
-        profit_points REAL,
-        duration TEXT,
-        open_comment TEXT,
-        close_comment TEXT,
-        UNIQUE (clientID, open_time, symbol, magic_number, type, volume, open_price, close_price, close_time) 
-    );""")
-
-    conn.commit()
-
-    df = pd.read_csv(filepath)
-    batch_size = 100
-    data_batch = []
-
-    for _, row in df.iterrows():
-        data_batch.append((clientID, row['Open Time'], row['Symbol'], row['Magic Number'], row['Type'], row['Volume'], 
-                           row['Open Price'], row['S/L'], row['T/P'], row['Close Price'], row['Close Time'], 
-                           row['Commission'], row['Swap'], row['Profit'], row['Profit Points'], row['Duration'], 
-                           row['Open Comment'], row['Close Comment']))
-
-        if len(data_batch) >= batch_size:
-            cur.executemany("""INSERT OR IGNORE INTO Trade_Transaction (clientID, open_time, symbol, magic_number, type, volume, 
-                              open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, 
-                              open_comment, close_comment) 
-                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", data_batch)
-            conn.commit()
-            data_batch = []
-
-    if data_batch:
-        cur.executemany("""INSERT OR IGNORE INTO Trade_Transaction (clientID, open_time, symbol, magic_number, type, volume, 
-                          open_price, sl, tp, close_price, close_time, commission, swap, profit, profit_points, duration, 
-                          open_comment, close_comment) 
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", data_batch)
-        conn.commit()
-
-    conn.close()
-    return True  
+    pass
 
 
 
