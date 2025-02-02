@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 1
+# 2
 
 # flask-login
 login_manager = LoginManager()
