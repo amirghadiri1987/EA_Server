@@ -1,6 +1,8 @@
 # address upload
 UPLOAD_DIR = 'Put your address of the directory to upload the CSV files'
 CSV_FILENAME = 'path to the file which is used by sqlite'
+DATABASE_FILENAME = 'The name of the database file used by sqlite'
+CSV_FILENAME = 'the name CSV file upload data to database'
 
 # login cedentials
 USERNAME = 'username'
