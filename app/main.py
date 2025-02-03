@@ -13,14 +13,14 @@ from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 
-limiter = Limiter(app, get_remote_address)
+limiter = Limiter(get_remote_address, app=app)
 UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
 CALL_BACK_TOKEN = config.call_back_token
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 7
+# 8
 
 # flask-login
 login_manager = LoginManager()
