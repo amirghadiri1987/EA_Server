@@ -7,15 +7,20 @@ import config
 from flask import Flask, flash, request, jsonify, Response, redirect, url_for, session, abort
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user 
 from werkzeug.utils import secure_filename
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 
 app = Flask(__name__)
+limiter = Limiter(app,
+                  key_func= get_remote_address)
 UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
+CALL_BACK_TOKEN = config.call_backi_token
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 1
+# 2
 
 # flask-login
 login_manager = LoginManager()
@@ -54,6 +59,7 @@ def home():
 
 # somewhere to login
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def login():
     if request.method == 'POST': #TODO: stop the brute force
         username = request.form['username']
@@ -112,6 +118,7 @@ def health_check():
 
 # TODO Fix simple welcome page 
 @app.route("/chck")
+@limiter.limit("5 per minute")
 def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
@@ -172,7 +179,7 @@ def database_exists(client_id):
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
-@app.route("/check_and_upload", methods=["POST"])
+@app.route(f'/{CALL_BACK_TOKEN}/check_and_upload', methods=["POST"])
 def check_and_upload():
     """API endpoint to check if a file needs to be uploaded and process it."""
     client_id = request.form.get("clientID")
