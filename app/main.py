@@ -16,11 +16,11 @@ limiter = Limiter(app,
                   key_func= get_remote_address)
 UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
-CALL_BACK_TOKEN = config.call_backi_token
+CALL_BACK_TOKEN = config.call_back_token
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 2
+# 3
 
 # flask-login
 login_manager = LoginManager()
@@ -179,7 +179,7 @@ def database_exists(client_id):
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
-@app.route(f'/{CALL_BACK_TOKEN}/check_and_upload', methods=["POST"])
+@app.route(f'/{config.call_back_token}/check_and_upload', methods=["POST"])
 def check_and_upload():
     """API endpoint to check if a file needs to be uploaded and process it."""
     client_id = request.form.get("clientID")
