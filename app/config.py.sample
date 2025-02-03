@@ -1,3 +1,7 @@
+# call back token 
+# f'/{CALL_BACK_TOKEN}/check_and_upload'
+call_backi_token = 'CALL BACK TOKEN'
+
 # address upload
 UPLOAD_DIR = 'Put your address of the directory to upload the CSV files'
 CSV_FILENAME = 'path to the file which is used by sqlite'
