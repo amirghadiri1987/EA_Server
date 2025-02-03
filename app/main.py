@@ -20,7 +20,7 @@ CALL_BACK_TOKEN = config.call_back_token
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 8
+# 9
 
 # flask-login
 login_manager = LoginManager()
@@ -120,7 +120,7 @@ def health_check():
 @app.route("/chck")
 # @limiter.limit("5 per minute")
 def hello_world():
-    print("Configured upload folder:", config.load_file_upload)
+    print("Configured upload folder:", config.UPLOAD_DIR)
     return "<p>Hello, World!</p>"
 
 
