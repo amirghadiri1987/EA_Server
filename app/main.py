@@ -20,7 +20,7 @@ CALL_BACK_TOKEN = config.call_back_token
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 3
+# 5
 
 # flask-login
 login_manager = LoginManager()
@@ -179,9 +179,14 @@ def database_exists(client_id):
 
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
-@app.route(f'/{config.call_back_token}/check_and_upload', methods=["POST"])
+@app.route(f'/{CALL_BACK_TOKEN}/check_and_upload', methods=["POST"])
 def check_and_upload():
     """API endpoint to check if a file needs to be uploaded and process it."""
+    # Ensure the request method is POST
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed. Use POST."}), 405
+
+    # Extract clientID and rows_count from the request
     client_id = request.form.get("clientID")
     rows_mql5 = request.form.get("rows_count")
 
@@ -192,7 +197,7 @@ def check_and_upload():
     try:
         rows_mql5 = int(rows_mql5)
     except ValueError:
-        return jsonify({"error": "Invalid rows_count"}), 400
+        return jsonify({"error": "Invalid rows_count. Must be an integer."}), 400
 
     # Create client folder if it doesn't exist
     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
@@ -217,14 +222,68 @@ def check_and_upload():
 
     # Save the file temporarily
     csv_path = os.path.join(client_folder, config.CSV_FILENAME)
-    file.save(csv_path)
+    try:
+        file.save(csv_path)
+    except Exception as e:
+        return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
 
     # Save CSV data to the database and delete the file
-    result = save_csv_to_database(client_id, csv_path)
-    if isinstance(result, int):
-        return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
-    else:
-        return jsonify({"error": f"Failed to process file: {result}"}), 500
+    try:
+        result = save_csv_to_database(client_id, csv_path)
+        if isinstance(result, int):
+            return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
+        else:
+            return jsonify({"error": f"Failed to process file: {result}"}), 500
+    finally:
+        # Ensure the temporary file is deleted
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+# @app.route(f'/{CALL_BACK_TOKEN}/check_and_upload', methods=["POST"])
+# def check_and_upload():
+#     """API endpoint to check if a file needs to be uploaded and process it."""
+#     client_id = request.form.get("clientID")
+#     rows_mql5 = request.form.get("rows_count")
+
+#     # Validate inputs
+#     if not client_id or rows_mql5 is None:
+#         return jsonify({"error": "Missing clientID or rows_count"}), 400
+
+#     try:
+#         rows_mql5 = int(rows_mql5)
+#     except ValueError:
+#         return jsonify({"error": "Invalid rows_count"}), 400
+
+#     # Create client folder if it doesn't exist
+#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
+#     os.makedirs(client_folder, exist_ok=True)
+
+#     # Get the current row count in the database
+#     rows_db = count_database_rows(client_id)
+
+#     # If database exists and row count matches, no need to upload
+#     if database_exists(client_id) and rows_db == rows_mql5:
+#         return jsonify({"message": "No need to upload. Data is up-to-date.", "rows": rows_db}), 200
+
+#     # Check if a file is provided
+#     if "file" not in request.files:
+#         return jsonify({"error": "No file provided"}), 400
+
+#     file = request.files["file"]
+
+#     # Validate file type
+#     if not allowed_file(file.filename):
+#         return jsonify({"error": "Invalid file type"}), 400
+
+#     # Save the file temporarily
+#     csv_path = os.path.join(client_folder, config.CSV_FILENAME)
+#     file.save(csv_path)
+
+#     # Save CSV data to the database and delete the file
+#     result = save_csv_to_database(client_id, csv_path)
+#     if isinstance(result, int):
+#         return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
+#     else:
+#         return jsonify({"error": f"Failed to process file: {result}"}), 500
     
 
 
