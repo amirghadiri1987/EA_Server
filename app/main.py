@@ -111,7 +111,7 @@ def health_check():
     return jsonify(ret), 200
 
 # TODO Fix simple welcome page 
-@app.route("/")
+@app.route("/chck")
 def hello_world():
     print("Configured upload folder:", config.load_file_upload)
     return "<p>Hello, World!</p>"
