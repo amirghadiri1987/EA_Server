@@ -12,8 +12,8 @@ from flask_limiter.util import get_remote_address
 
 
 app = Flask(__name__)
-limiter = Limiter(app,
-                  key_func= get_remote_address)
+# limiter = Limiter(app,
+#                   key_func= get_remote_address)
 UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
 CALL_BACK_TOKEN = config.call_back_token
