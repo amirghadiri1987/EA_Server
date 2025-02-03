@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 36
+# 1
 
 # flask-login
 login_manager = LoginManager()
@@ -104,7 +104,6 @@ def load_user(userid):
 
 
 
-
 # TODO some health check url
 @app.route("/v1/ok")
 def health_check():
@@ -123,23 +122,39 @@ def hello_world():
 
 
 
+
+
+
+
 # TODO Test function check_row_count in mql5
 # ✅ Expose check_row_count as API
+@app.route("/count_database_rows", methods=["GET"])
 def count_database_rows(client_id):
+    """Count the number of rows in the 'trades' table for a given client."""
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+    
     if not os.path.exists(db_path):
         return 0
     
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM trades")
-        row_count = cursor.fetchone()[0]
-        conn.close()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM trades")
+            row_count = cursor.fetchone()[0]
         return row_count
-    except:
+    except sqlite3.Error:
+        # Handle database errors (e.g., table doesn't exist)
         return 0
     
+
+
+
+
+
+
+
+
+
 
 
 
@@ -147,22 +162,23 @@ def allowed_file(filename):
     """Check if file has allowed extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in config.allowed_extensions
 
-# # Function to check if the file exists
-# def file_exists(client_id):
-#     file_path = os.path.join(config.UPLOAD_DIR, client_id, config.CSV_FILENAME)
-#     return os.path.exists(file_path)
 # Function to check if the database exists
 def database_exists(client_id):
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
     return os.path.exists(db_path)
 
+
+
+
 # TODO Test function check_and_upload_file in mql5
 # ✅ Expose check_and_upload_file as API
 @app.route("/check_and_upload", methods=["POST"])
 def check_and_upload():
+    """API endpoint to check if a file needs to be uploaded and process it."""
     client_id = request.form.get("clientID")
     rows_mql5 = request.form.get("rows_count")
 
+    # Validate inputs
     if not client_id or rows_mql5 is None:
         return jsonify({"error": "Missing clientID or rows_count"}), 400
 
@@ -171,16 +187,18 @@ def check_and_upload():
     except ValueError:
         return jsonify({"error": "Invalid rows_count"}), 400
 
+    # Create client folder if it doesn't exist
     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
     os.makedirs(client_folder, exist_ok=True)
 
+    # Get the current row count in the database
     rows_db = count_database_rows(client_id)
 
-    # If database exists and row count is equal, do nothing
+    # If database exists and row count matches, no need to upload
     if database_exists(client_id) and rows_db == rows_mql5:
         return jsonify({"message": "No need to upload. Data is up-to-date.", "rows": rows_db}), 200
 
-    # If no file is provided, return an error
+    # Check if a file is provided
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -190,110 +208,16 @@ def check_and_upload():
     if not allowed_file(file.filename):
         return jsonify({"error": "Invalid file type"}), 400
 
-    # Save file temporarily
+    # Save the file temporarily
     csv_path = os.path.join(client_folder, config.CSV_FILENAME)
     file.save(csv_path)
 
-    # Save CSV data to database and delete the file
+    # Save CSV data to the database and delete the file
     result = save_csv_to_database(client_id, csv_path)
     if isinstance(result, int):
-        print("File uploaded, saved to database, and deleted", "rows_saved")
         return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
     else:
         return jsonify({"error": f"Failed to process file: {result}"}), 500
-
-
-
-
-# @app.route("/check_file", methods=["POST"])
-# def check_and_upload():
-#     client_id = request.form.get("clientID")
-#     if not client_id:
-#         return jsonify({"error": "Missing clientID"}), 400
-
-#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
-#     os.makedirs(client_folder, exist_ok=True)  # Create folder if not exists
-
-#     # Check if the database exists
-#     if database_exists(client_id):
-#         return jsonify({"message": "Database already exists"}), 200
-
-#     # Check if a file is provided
-#     if "file" not in request.files:
-#         return jsonify({"error": "No file provided"}), 400
-
-#     file = request.files["file"]
-
-#     # Validate file type
-#     if not allowed_file(file.filename):
-#         return jsonify({"error": "Invalid file type"}), 400
-
-#     # Save the CSV file
-#     csv_path = os.path.join(client_folder, config.CSV_FILENAME)
-#     file.save(csv_path)
-
-#     # Save CSV data to database and delete the file
-#     result = save_csv_to_database(client_id, csv_path)
-#     if result is True:
-#         return jsonify({"message": "File uploaded, saved to database, and deleted"}), 201
-#     else:
-#         return jsonify({"error": f"Failed to process file: {result}"}), 500
-
-
-# @app.route("/check_file", methods=["POST"])
-# def check_and_upload():
-#     client_id = request.form.get("clientID")
-#     if not client_id:
-#         return jsonify({"error": "Missing clientID"}), 400
-
-#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
-#     os.makedirs(client_folder, exist_ok=True)  # Create folder if not exists
-
-#     # Check if the database exists
-#     if database_exists(client_id):
-#         return jsonify({"message": "Database already exists"}), 200
-
-#     # Check if a file is provided
-#     if "file" not in request.files:
-#         return jsonify({"error": "No file provided"}), 400
-
-#     file = request.files["file"]
-
-#     # Validate file type
-#     if not allowed_file(file.filename):
-#         return jsonify({"error": "Invalid file type"}), 400
-
-#     # Save the CSV file
-#     file.save(os.path.join(client_folder, config.CSV_FILENAME))
-#     return jsonify({"message": "File uploaded successfully"}), 201
-
-
-# @app.route("/check_file", methods=["POST"])
-# def check_and_upload():
-#     client_id = request.form.get("clientID")
-#     if not client_id:
-#         return jsonify({"error": "Missing clientID"}), 400
-
-#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
-#     os.makedirs(client_folder, exist_ok=True)  # Create folder if not exists
-
-#     # Check if file exists
-#     if file_exists(client_id):
-#         return jsonify({"message": "File already exists"}), 200
-
-#     # Check if file is provided
-#     if "file" not in request.files:
-#         return jsonify({"error": "No file provided"}), 400
-
-#     file = request.files["file"]
-
-#     # Validate file type
-#     if not allowed_file(file.filename):
-#         return jsonify({"error": "Invalid file type"}), 400
-
-#     # Save file
-#     file.save(os.path.join(client_folder, config.CSV_FILENAME))
-#     return jsonify({"message": "File uploaded successfully"}), 201
     
 
 
@@ -301,54 +225,35 @@ def check_and_upload():
 
 
 
-# TODO Test function transfer_to_database in mql5
+    # TODO Test function transfer_to_database in mql5
 # ✅ Expose transfer_to_database as API
 def save_csv_to_database(client_id, csv_path):
+    """Save CSV data to the database and return the number of rows saved."""
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
 
     try:
+        # Read the CSV file into a DataFrame
         df = pd.read_csv(csv_path)
 
+        # Connect to the database and save the DataFrame
         conn = sqlite3.connect(db_path)
-        df.to_sql("trades", conn, if_exists="replace", index=False)  
+        df.to_sql("trades", conn, if_exists="replace", index=False)
         conn.close()
 
+        # Get the number of rows saved
         row_count = len(df)
 
+        # Delete the temporary CSV file
         os.remove(csv_path)
         return row_count
     except Exception as e:
         return str(e)
     
-# def save_csv_to_database(client_id, csv_path):
-#     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
-
-#     try:
-#         # Read CSV into Pandas DataFrame
-#         df = pd.read_csv(csv_path)
-
-#         # Connect to SQLite database (or create if not exists)
-#         conn = sqlite3.connect(db_path)
-#         df.to_sql("trades", conn, if_exists="replace", index=False)  # Save CSV as table "trades"
-#         conn.close()
-
-#         # Delete the CSV file after successful insertion
-#         os.remove(csv_path)
-#         return True
-#     except Exception as e:
-#         return str(e)
-
-
-
-    
 
 
 
 
-
-
-
-# TODO Test function upload_transaction_to_db in mql5
+    # TODO Test function upload_transaction_to_db in mql5
 # ✅ Expose upload_transaction_to_db as API
 @app.route("/upload_transaction", methods=["POST"])
 def upload_transaction_to_db():
