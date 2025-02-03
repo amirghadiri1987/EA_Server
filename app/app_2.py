@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 36
+# 1
 
 # flask-login
 login_manager = LoginManager()
@@ -122,23 +122,39 @@ def hello_world():
 
 
 
-
+@app.route("/count_database_rows", methods=["GET"])
 def count_database_rows(client_id):
     """Count the number of rows in the 'trades' table for a given client."""
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+    
     if not os.path.exists(db_path):
         return 0
     
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM trades")
-        row_count = cursor.fetchone()[0]
-        conn.close()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM trades")
+            row_count = cursor.fetchone()[0]
         return row_count
-    except Exception as e:
-        print(f"Error counting rows: {e}")
+    except sqlite3.Error:
+        # Handle database errors (e.g., table doesn't exist)
         return 0
+# def count_database_rows(client_id):
+#     """Count the number of rows in the 'trades' table for a given client."""
+#     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+#     if not os.path.exists(db_path):
+#         return 0
+    
+#     try:
+#         conn = sqlite3.connect(db_path)
+#         cursor = conn.cursor()
+#         cursor.execute("SELECT COUNT(*) FROM trades")
+#         row_count = cursor.fetchone()[0]
+#         conn.close()
+#         return row_count
+#     except Exception as e:
+#         print(f"Error counting rows: {e}")
+#         return 0
 
 # Helper function to check if a file has an allowed extension
 def allowed_file(filename):
