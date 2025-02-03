@@ -54,7 +54,7 @@ user = User(0)
 @app.route('/')
 @login_required
 def home():
-    return Response("Hello World!")
+    return Response("Hello World in the page!")
 
 
 # somewhere to login
@@ -118,7 +118,7 @@ def health_check():
 
 # TODO Fix simple welcome page 
 @app.route("/chck")
-# @limiter.limit("5 per minute")
+@limiter.limit("5 per minute")
 def hello_world():
     print("Configured upload folder:", config.UPLOAD_DIR)
     return "<p>Hello, World!</p>"
