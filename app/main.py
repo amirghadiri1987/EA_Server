@@ -59,7 +59,7 @@ def home():
 
 # somewhere to login
 @app.route("/login", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
+# @limiter.limit("5 per minute")
 def login():
     if request.method == 'POST': #TODO: stop the brute force
         username = request.form['username']
