@@ -1,6 +1,6 @@
 # call back token 
 # f'/{CALL_BACK_TOKEN}/check_and_upload'
-call_backi_token = 'CALL BACK TOKEN'
+call_back_token = 'CALL BACK TOKEN'
 
 # address upload
 UPLOAD_DIR = 'Put your address of the directory to upload the CSV files'
