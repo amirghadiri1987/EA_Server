@@ -7,20 +7,20 @@ import config
 from flask import Flask, flash, request, jsonify, Response, redirect, url_for, session, abort
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user 
 from werkzeug.utils import secure_filename
-# from flask_limiter import Limiter
-# from flask_limiter.util import get_remote_address
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 
 app = Flask(__name__)
-# limiter = Limiter(app,
-#                   key_func= get_remote_address)
+
+limiter = Limiter(app, get_remote_address)
 UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
 CALL_BACK_TOKEN = config.call_back_token
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 6
+# 7
 
 # flask-login
 login_manager = LoginManager()
@@ -59,7 +59,7 @@ def home():
 
 # somewhere to login
 @app.route("/login", methods=["GET", "POST"])
-# @limiter.limit("5 per minute")
+@limiter.limit("5 per minute")
 def login():
     if request.method == 'POST': #TODO: stop the brute force
         username = request.form['username']
