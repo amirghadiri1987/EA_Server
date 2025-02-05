@@ -9,14 +9,20 @@ from flask_login import LoginManager, UserMixin, login_required, login_user, log
 from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from redis import Redis
 
 
 app = Flask(__name__)
 
-limiter = Limiter(get_remote_address, app=app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="redis://localhost:6379"
+)
 UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
 CALL_BACK_TOKEN = config.call_back_token
+CALL_BACK_TOKEN_ADMIN = config.call_back_token_admin
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
@@ -58,7 +64,7 @@ def home():
 
 
 # somewhere to login
-@app.route("/login", methods=["GET", "POST"])
+@app.route(f'/{CALL_BACK_TOKEN_ADMIN}/login', methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def login():
     if request.method == 'POST': #TODO: stop the brute force
