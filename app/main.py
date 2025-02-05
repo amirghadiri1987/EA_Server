@@ -117,7 +117,7 @@ def load_user(userid):
 
 
 # TODO some health check url
-@app.route("/v1/ok")
+@app.route(f'/{CALL_BACK_TOKEN}/v1/ok')
 def health_check():
     ret = {'message': 'ok'}
     return jsonify(ret), 200
