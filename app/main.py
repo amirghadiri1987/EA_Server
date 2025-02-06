@@ -118,10 +118,11 @@ def load_user(userid):
 
 
 # TODO some health check url
+# ✅
 @app.route(f'/{CALL_BACK_TOKEN_CHECK_SERVER}/v1/ok')
 def health_check():
-    ret = {'message': 'ok'}
-    return jsonify(ret), 200
+    response_data = {"status": "success", "message": "Server is running"}
+    return jsonify(response_data), 200
 
 # TODO Fix simple welcome page 
 @app.route("/chck")
@@ -141,7 +142,7 @@ def hello_world():
 
 
 # TODO Test function check_row_count in mql5
-# ✅ Expose check_row_count as API
+#  Expose check_row_count as API
 @app.route("/count_database_rows", methods=["GET"])
 def count_database_rows(client_id):
     """Count the number of rows in the 'trades' table for a given client."""
@@ -185,7 +186,7 @@ def database_exists(client_id):
 
 
 # TODO Test function check_and_upload_file in mql5
-# ✅ Expose check_and_upload_file as API
+#  Expose check_and_upload_file as API
 @app.route(f'/{CALL_BACK_TOKEN}/check_and_upload', methods=["POST"])
 def check_and_upload():
     """API endpoint to check if a file needs to be uploaded and process it."""
@@ -299,7 +300,7 @@ def check_and_upload():
 
 
     # TODO Test function transfer_to_database in mql5
-# ✅ Expose transfer_to_database as API
+#  Expose transfer_to_database as API
 def save_csv_to_database(client_id, csv_path):
     """Save CSV data to the database and return the number of rows saved."""
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
@@ -327,7 +328,7 @@ def save_csv_to_database(client_id, csv_path):
 
 
     # TODO Test function upload_transaction_to_db in mql5
-# ✅ Expose upload_transaction_to_db as API
+#  Expose upload_transaction_to_db as API
 @app.route("/upload_transaction", methods=["POST"])
 def upload_transaction_to_db():
     transaction_data = request.json
