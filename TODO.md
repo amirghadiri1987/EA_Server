@@ -6,3 +6,9 @@
 - [] Test function transfer_to_database in mql5
 - [] Test function check_row_count in mql5
 - [] Test function upload_transaction_to_db in mql5
+- [] Checking the health of the database
+- [] All possible server problems should be reported in print form. To determine the cause of the problem
+- [] storage_uri="redis://localhost:6379" port must be checked that it is not blocked.
+- [] url site name or IP address or server name that is supposed to be set in the client terminal. 
+     It should be ok and also the graphics should be ok. (limiter) the number of allowed 
+- [] Building a Python app on the server to create an expert private key
