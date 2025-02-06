@@ -1,6 +1,7 @@
 - [*] create requirements.txt (pip freeze)
 - [*] some health check url
 - [] Fix simple welcome page @app.route("/")
+- [*] modify server status (on/off) @app.route("/")
 - [] Test function check_and_upload_file in mql5
 - [] Test function transfer_to_database in mql5
 - [] Test function check_row_count in mql5
