@@ -23,6 +23,7 @@ UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
 CALL_BACK_TOKEN = config.call_back_token
 CALL_BACK_TOKEN_ADMIN = config.call_back_token_admin
+CALL_BACK_TOKEN_CHECK_SERVER = config.call_back_token_check_server
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
@@ -117,7 +118,7 @@ def load_user(userid):
 
 
 # TODO some health check url
-@app.route(f'/{CALL_BACK_TOKEN}/v1/ok')
+@app.route(f'/{CALL_BACK_TOKEN_CHECK_SERVER}/v1/ok')
 def health_check():
     ret = {'message': 'ok'}
     return jsonify(ret), 200
