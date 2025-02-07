@@ -7,15 +7,27 @@ import config
 from flask import Flask, flash, request, jsonify, Response, redirect, url_for, session, abort
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user 
 from werkzeug.utils import secure_filename
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from redis import Redis
 
 
 app = Flask(__name__)
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="redis://localhost:6379"
+)
 UPLOAD_FOLDER = config.UPLOAD_DIR
 ALLOWED_EXTENSIONS = config.allowed_extensions
+CALL_BACK_TOKEN = config.call_back_token
+CALL_BACK_TOKEN_ADMIN = config.call_back_token_admin
+CALL_BACK_TOKEN_CHECK_SERVER = config.call_back_token_check_server
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# 2
+# 9
 
 # flask-login
 login_manager = LoginManager()
@@ -49,11 +61,12 @@ user = User(0)
 @app.route('/')
 @login_required
 def home():
-    return Response("Hello World!")
+    return Response("Hello World in the page!")
 
 
 # somewhere to login
-@app.route("/login", methods=["GET", "POST"])
+@app.route(f'/{CALL_BACK_TOKEN_ADMIN}/login', methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def login():
     if request.method == 'POST': #TODO: stop the brute force
         username = request.form['username']
@@ -104,17 +117,18 @@ def load_user(userid):
 
 
 
-
 # TODO some health check url
-@app.route("/v1/ok")
+# ✅
+@app.route(f'/{CALL_BACK_TOKEN_CHECK_SERVER}/v1/ok')
 def health_check():
-    ret = {'message': 'ok'}
-    return jsonify(ret), 200
+    response_data = {"status": "success", "message": "Server is running"}
+    return jsonify(response_data), 200
 
 # TODO Fix simple welcome page 
-@app.route("/")
+@app.route("/chck")
+@limiter.limit("5 per minute")
 def hello_world():
-    print("Configured upload folder:", config.load_file_upload)
+    print("Configured upload folder:", config.UPLOAD_DIR)
     return "<p>Hello, World!</p>"
 
 
@@ -123,9 +137,64 @@ def hello_world():
 
 
 
-@app.route("/check_and_upload", methods=["POST"])
+
+
+
+
+# TODO Test function check_row_count in mql5
+#  Expose check_row_count as API
+@app.route("/count_database_rows", methods=["GET"])
+def count_database_rows(client_id):
+    """Count the number of rows in the 'trades' table for a given client."""
+    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+    
+    if not os.path.exists(db_path):
+        return 0
+    
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM trades")
+            row_count = cursor.fetchone()[0]
+        return row_count
+    except sqlite3.Error:
+        # Handle database errors (e.g., table doesn't exist)
+        return 0
+    
+
+
+
+
+
+
+
+
+
+
+
+
+def allowed_file(filename):
+    """Check if file has allowed extension."""
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in config.allowed_extensions
+
+# Function to check if the database exists
+def database_exists(client_id):
+    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+    return os.path.exists(db_path)
+
+
+
+
+# TODO Test function check_and_upload_file in mql5
+#  Expose check_and_upload_file as API
+@app.route(f'/{CALL_BACK_TOKEN}/check_and_upload', methods=["POST"])
 def check_and_upload():
     """API endpoint to check if a file needs to be uploaded and process it."""
+    # Ensure the request method is POST
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed. Use POST."}), 405
+
+    # Extract clientID and rows_count from the request
     client_id = request.form.get("clientID")
     rows_mql5 = request.form.get("rows_count")
 
@@ -136,7 +205,7 @@ def check_and_upload():
     try:
         rows_mql5 = int(rows_mql5)
     except ValueError:
-        return jsonify({"error": "Invalid rows_count"}), 400
+        return jsonify({"error": "Invalid rows_count. Must be an integer."}), 400
 
     # Create client folder if it doesn't exist
     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
@@ -161,16 +230,77 @@ def check_and_upload():
 
     # Save the file temporarily
     csv_path = os.path.join(client_folder, config.CSV_FILENAME)
-    file.save(csv_path)
+    try:
+        file.save(csv_path)
+    except Exception as e:
+        return jsonify({"error": f"Failed to save file: {str(e)}"}), 500
 
     # Save CSV data to the database and delete the file
-    result = save_csv_to_database(client_id, csv_path)
-    if isinstance(result, int):
-        return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
-    else:
-        return jsonify({"error": f"Failed to process file: {result}"}), 500
+    try:
+        result = save_csv_to_database(client_id, csv_path)
+        if isinstance(result, int):
+            return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
+        else:
+            return jsonify({"error": f"Failed to process file: {result}"}), 500
+    finally:
+        # Ensure the temporary file is deleted
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+# @app.route(f'/{CALL_BACK_TOKEN}/check_and_upload', methods=["POST"])
+# def check_and_upload():
+#     """API endpoint to check if a file needs to be uploaded and process it."""
+#     client_id = request.form.get("clientID")
+#     rows_mql5 = request.form.get("rows_count")
 
-# Helper function to save CSV data to the database
+#     # Validate inputs
+#     if not client_id or rows_mql5 is None:
+#         return jsonify({"error": "Missing clientID or rows_count"}), 400
+
+#     try:
+#         rows_mql5 = int(rows_mql5)
+#     except ValueError:
+#         return jsonify({"error": "Invalid rows_count"}), 400
+
+#     # Create client folder if it doesn't exist
+#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
+#     os.makedirs(client_folder, exist_ok=True)
+
+#     # Get the current row count in the database
+#     rows_db = count_database_rows(client_id)
+
+#     # If database exists and row count matches, no need to upload
+#     if database_exists(client_id) and rows_db == rows_mql5:
+#         return jsonify({"message": "No need to upload. Data is up-to-date.", "rows": rows_db}), 200
+
+#     # Check if a file is provided
+#     if "file" not in request.files:
+#         return jsonify({"error": "No file provided"}), 400
+
+#     file = request.files["file"]
+
+#     # Validate file type
+#     if not allowed_file(file.filename):
+#         return jsonify({"error": "Invalid file type"}), 400
+
+#     # Save the file temporarily
+#     csv_path = os.path.join(client_folder, config.CSV_FILENAME)
+#     file.save(csv_path)
+
+#     # Save CSV data to the database and delete the file
+#     result = save_csv_to_database(client_id, csv_path)
+#     if isinstance(result, int):
+#         return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
+#     else:
+#         return jsonify({"error": f"Failed to process file: {result}"}), 500
+    
+
+
+
+
+
+
+    # TODO Test function transfer_to_database in mql5
+#  Expose transfer_to_database as API
 def save_csv_to_database(client_id, csv_path):
     """Save CSV data to the database and return the number of rows saved."""
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
@@ -192,19 +322,13 @@ def save_csv_to_database(client_id, csv_path):
         return row_count
     except Exception as e:
         return str(e)
-
-
-
     
 
 
 
 
-
-
-
-# TODO Test function upload_transaction_to_db in mql5
-# ✅ Expose upload_transaction_to_db as API
+    # TODO Test function upload_transaction_to_db in mql5
+#  Expose upload_transaction_to_db as API
 @app.route("/upload_transaction", methods=["POST"])
 def upload_transaction_to_db():
     transaction_data = request.json
@@ -257,4 +381,4 @@ transaction_data = {
 
     
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000)
