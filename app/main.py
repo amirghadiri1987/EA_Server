@@ -162,27 +162,15 @@ def count_database_rows(client_id):
         return 0
     
 
-
-
-
-
-
-
-
-
-
-
-
 def allowed_file(filename):
     """Check if file has allowed extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in config.allowed_extensions
+
 
 # Function to check if the database exists
 def database_exists(client_id):
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
     return os.path.exists(db_path)
-
-
 
 
 # TODO Test function check_and_upload_file in mql5
@@ -246,52 +234,7 @@ def check_and_upload():
         # Ensure the temporary file is deleted
         if os.path.exists(csv_path):
             os.remove(csv_path)
-# @app.route(f'/{CALL_BACK_TOKEN}/check_and_upload', methods=["POST"])
-# def check_and_upload():
-#     """API endpoint to check if a file needs to be uploaded and process it."""
-#     client_id = request.form.get("clientID")
-#     rows_mql5 = request.form.get("rows_count")
 
-#     # Validate inputs
-#     if not client_id or rows_mql5 is None:
-#         return jsonify({"error": "Missing clientID or rows_count"}), 400
-
-#     try:
-#         rows_mql5 = int(rows_mql5)
-#     except ValueError:
-#         return jsonify({"error": "Invalid rows_count"}), 400
-
-#     # Create client folder if it doesn't exist
-#     client_folder = os.path.join(config.UPLOAD_DIR, client_id)
-#     os.makedirs(client_folder, exist_ok=True)
-
-#     # Get the current row count in the database
-#     rows_db = count_database_rows(client_id)
-
-#     # If database exists and row count matches, no need to upload
-#     if database_exists(client_id) and rows_db == rows_mql5:
-#         return jsonify({"message": "No need to upload. Data is up-to-date.", "rows": rows_db}), 200
-
-#     # Check if a file is provided
-#     if "file" not in request.files:
-#         return jsonify({"error": "No file provided"}), 400
-
-#     file = request.files["file"]
-
-#     # Validate file type
-#     if not allowed_file(file.filename):
-#         return jsonify({"error": "Invalid file type"}), 400
-
-#     # Save the file temporarily
-#     csv_path = os.path.join(client_folder, config.CSV_FILENAME)
-#     file.save(csv_path)
-
-#     # Save CSV data to the database and delete the file
-#     result = save_csv_to_database(client_id, csv_path)
-#     if isinstance(result, int):
-#         return jsonify({"message": "File uploaded, saved to database, and deleted", "rows_saved": result}), 201
-#     else:
-#         return jsonify({"error": f"Failed to process file: {result}"}), 500
     
 
 
@@ -300,6 +243,8 @@ def check_and_upload():
 
 
     # TODO Test function transfer_to_database in mql5
+
+
 #  Expose transfer_to_database as API
 def save_csv_to_database(client_id, csv_path):
     """Save CSV data to the database and return the number of rows saved."""
@@ -377,6 +322,44 @@ transaction_data = {
 }
 
 
+@app.route("/get_max_volume", methods=["GET"])
+def get_max_volume():
+    client_id = request.args.get("clientID")
+    magic_number = request.args.get("magic_number")
+
+    # Validate inputs
+    if not client_id or not magic_number:
+        return jsonify({"error": "Missing clientID or magic_number"}), 400
+
+    try:
+        magic_number = int(magic_number)
+    except ValueError:
+        return jsonify({"error": "Invalid magic_number. Must be an integer."}), 400
+
+    # Database path based on client ID
+    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+
+    if not os.path.exists(db_path):
+        return jsonify({"error": "Database not found for this clientID"}), 404
+
+    try:
+        # Connect to the database
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        # Query to get the maximum volume for the given magic number
+        cur.execute("SELECT MAX(volume) FROM Trade_Transaction WHERE magic_number = ?", (magic_number,))
+        max_volume = cur.fetchone()[0]
+
+        conn.close()
+
+        if max_volume is None:
+            return jsonify({"error": "No records found for this magic_number"}), 404
+
+        return jsonify({"clientID": client_id, "magic_number": magic_number, "max_volume": max_volume}), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Database query failed: {str(e)}"}), 500
 
 
     
