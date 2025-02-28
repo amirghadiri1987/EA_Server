@@ -322,44 +322,38 @@ transaction_data = {
 }
 
 
-@app.route("/get_max_volume", methods=["GET"])
-def get_max_volume():
-    client_id = request.args.get("clientID")
-    magic_number = request.args.get("magic_number")
-
-    # Validate inputs
-    if not client_id or not magic_number:
-        return jsonify({"error": "Missing clientID or magic_number"}), 400
-
-    try:
-        magic_number = int(magic_number)
-    except ValueError:
-        return jsonify({"error": "Invalid magic_number. Must be an integer."}), 400
-
-    # Database path based on client ID
+#+------------------------------------------------------------------+
+#| Retrieves the maximum volume for a given magic number           |
+#+------------------------------------------------------------------+
+def get_max_volume(client_id, magic_number):
+    """Fetch the maximum volume for a given magic number from the database."""
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
 
+    # Ensure the database file exists
     if not os.path.exists(db_path):
-        return jsonify({"error": "Database not found for this clientID"}), 404
+        print(f"[DEBUG] Database not found: {db_path}")
+        return None
 
     try:
-        # Connect to the database
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
-        # Query to get the maximum volume for the given magic number
+        # Query the maximum volume for the given magic number
         cur.execute("SELECT MAX(volume) FROM Trade_Transaction WHERE magic_number = ?", (magic_number,))
         max_volume = cur.fetchone()[0]
 
         conn.close()
 
-        if max_volume is None:
-            return jsonify({"error": "No records found for this magic_number"}), 404
+        # Debug prints
+        print(f"[DEBUG] Client ID: {client_id}")
+        print(f"[DEBUG] Magic Number: {magic_number}")
+        print(f"[DEBUG] Max Volume: {max_volume}")
 
-        return jsonify({"clientID": client_id, "magic_number": magic_number, "max_volume": max_volume}), 200
-
+        return max_volume
     except Exception as e:
-        return jsonify({"error": f"Database query failed: {str(e)}"}), 500
+        print(f"[ERROR] Failed to fetch max volume: {e}")
+        return None
+
 
 
     
