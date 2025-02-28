@@ -3,7 +3,7 @@
 call_back_token = 'CALL BACK TOKEN'
 call_back_token_admin = 'CALL BACK TOKEN admin'
 call_back_token_check_server = 'CAL BACK TOKEN CHECK SERVER'
-call_back_token_synce = 'CAL BACK TOKEN SYNCE'
+call_back_token_sync = 'CAL BACK TOKEN SYNCE'
 
 
 # address upload
