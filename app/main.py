@@ -24,6 +24,7 @@ ALLOWED_EXTENSIONS = config.allowed_extensions
 CALL_BACK_TOKEN = config.call_back_token
 CALL_BACK_TOKEN_ADMIN = config.call_back_token_admin
 CALL_BACK_TOKEN_CHECK_SERVER = config.call_back_token_check_server
+CALL_BACK_TOKEN_SYNC = config.call_back_token_sync
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
@@ -143,7 +144,7 @@ def hello_world():
 
 # TODO Test function check_row_count in mql5
 #  Expose check_row_count as API
-@app.route("/count_database_rows", methods=["GET"])
+# @app.route("/count_database_rows", methods=["GET"])
 def count_database_rows(client_id):
     """Count the number of rows in the 'trades' table for a given client."""
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
@@ -322,24 +323,31 @@ transaction_data = {
 }
 
 
-#+------------------------------------------------------------------+
-#| Retrieves the maximum volume for a given magic number           |
-#+------------------------------------------------------------------+
-def get_max_volume(client_id, magic_number):
+# Route to get max volume
+@app.route(f'/{CALL_BACK_TOKEN_SYNC}/get_max_volume', methods=["GET"])
+def get_max_volume():
     """Fetch the maximum volume for a given magic number from the database."""
+    
+    # Get parameters from URL
+    client_id = request.args.get("clientID")
+    magic_number = request.args.get("magic_number")
+
+    if not client_id or not magic_number:
+        return jsonify({"error": "Missing clientID or magic_number"}), 400
+
     db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
 
     # Ensure the database file exists
     if not os.path.exists(db_path):
         print(f"[DEBUG] Database not found: {db_path}")
-        return None
+        return jsonify({"error": "Database not found"}), 404
 
     try:
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
         # Query the maximum volume for the given magic number
-        cur.execute("SELECT MAX(volume) FROM Trade_Transaction WHERE magic_number = ?", (magic_number,))
+        cur.execute("SELECT MAX(Volume) FROM trades WHERE Magic_Number = ?", (int(magic_number),))
         max_volume = cur.fetchone()[0]
 
         conn.close()
@@ -349,11 +357,10 @@ def get_max_volume(client_id, magic_number):
         print(f"[DEBUG] Magic Number: {magic_number}")
         print(f"[DEBUG] Max Volume: {max_volume}")
 
-        return max_volume
+        return jsonify({"clientID": client_id, "magic_number": magic_number, "max_volume": max_volume})
     except Exception as e:
         print(f"[ERROR] Failed to fetch max volume: {e}")
-        return None
-
+        return jsonify({"error": str(e)}), 500
 
 
     
