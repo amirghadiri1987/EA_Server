@@ -433,12 +433,36 @@ def calculate_outputs(filtered_db_path):
 
 def calculate_drawdown(profit_series):
     """
-    Calculates the maximum drawdown from the profit series.
+    Calculate the maximum drawdown from a series of profits.
+    
+    Parameters:
+        profit_series (list or pandas.Series): A list or Series of profit values.
+    
+    Returns:
+        float: The maximum drawdown.
     """
-    cumulative_profit = profit_series.cumsum()  # Calculate cumulative profit
-    peak = cumulative_profit.cummax()  # Track the peak cumulative profit
-    drawdown = (peak - cumulative_profit).max()  # Calculate maximum drawdown
-    return drawdown
+    import pandas as pd
+
+    # Convert the profit series to a pandas Series if it's not already
+    if not isinstance(profit_series, pd.Series):
+        profit_series = pd.Series(profit_series)
+
+    # Add a row for the initial state (before the first trade)
+    profit_series = pd.concat([pd.Series([0]), profit_series], ignore_index=True)
+
+    # Calculate cumulative profit (starting from 0)
+    cumulative_profit = profit_series.cumsum()
+
+    # Calculate maximum cumulative profit
+    max_cumulative_profit = cumulative_profit.cummax()
+
+    # Calculate drawdown
+    drawdown = max_cumulative_profit - cumulative_profit
+
+    # Calculate maximum drawdown
+    max_drawdown = drawdown.max()
+
+    return max_drawdown
 
 
 def calculate_profit_factor(profit_series):
