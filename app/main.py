@@ -435,9 +435,9 @@ def calculate_drawdown(profit_series):
     """
     Calculates the maximum drawdown from the profit series.
     """
-    cumulative_profit = profit_series.cumsum()
-    peak = cumulative_profit.cummax()
-    drawdown = (cumulative_profit - peak).min()
+    cumulative_profit = profit_series.cumsum()  # Calculate cumulative profit
+    peak = cumulative_profit.cummax()  # Track the peak cumulative profit
+    drawdown = (peak - cumulative_profit).max()  # Calculate maximum drawdown
     return drawdown
 
 
