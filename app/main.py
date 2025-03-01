@@ -504,6 +504,10 @@ def api_get_filtered_outputs():
     return jsonify(outputs), 200
 
 
+
+
+
+
 def add_single_transaction(client_id, magic_number, transaction_data):
     """
     Adds a single transaction to the filtered database if it matches the Magic_Number.
