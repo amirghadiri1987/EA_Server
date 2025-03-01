@@ -446,11 +446,21 @@ def calculate_profit_factor(profit_series):
 
 def calculate_trades_won_percentage(profit_series):
     """
-    Calculates the percentage of winning trades.
+    Calculates the percentage of winning trades and the number of winning trades.
     """
+    # Count the number of winning trades (Profit > 0)
     winning_trades = profit_series[profit_series > 0].count()
+    
+    # Total number of trades
     total_trades = profit_series.count()
-    return (winning_trades / total_trades) * 100 if total_trades != 0 else 0
+    
+    # Calculate the percentage of winning trades
+    if total_trades > 0:
+        win_percentage = (winning_trades / total_trades) * 100
+    else:
+        win_percentage = 0
+    
+    return winning_trades, win_percentage
 
 
 def calculate_expected_payoff(profit_series):
