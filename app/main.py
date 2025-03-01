@@ -30,6 +30,7 @@ CALL_BACK_TOKEN = config.call_back_token
 CALL_BACK_TOKEN_ADMIN = config.call_back_token_admin
 CALL_BACK_TOKEN_CHECK_SERVER = config.call_back_token_check_server
 CALL_BACK_TOKEN_SYNC = config.call_back_token_sync
+CALL_BACK_TOKEN_SYNC_UPDATE = config.call_back_token_sync_update
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
@@ -503,7 +504,94 @@ def api_get_filtered_outputs():
     return jsonify(outputs), 200
 
 
+def add_single_transaction(client_id, magic_number, transaction_data):
+    """
+    Adds a single transaction to the filtered database if it matches the Magic_Number.
+    
+    Parameters:
+        client_id (str): The ID of the client.
+        magic_number (int): The Magic Number to filter transactions.
+        transaction_data (dict): A dictionary containing the transaction data.
+    
+    Returns:
+        bool: True if the transaction was added successfully, False otherwise.
+    """
+    # Path to the filtered database
+    filtered_db_path = os.path.join(config.UPLOAD_DIR, client_id, f"filtered_{magic_number}.db")
 
+    # Check if the filtered database exists
+    if not os.path.exists(filtered_db_path):
+        logger.error(f"Filtered database for Magic_Number {magic_number} does not exist.")
+        return False
+
+    # Check if the transaction matches the Magic_Number
+    if transaction_data.get("Magic_Number") != magic_number:
+        logger.info("Transaction does not match the specified Magic_Number.")
+        return False
+
+    # Convert the transaction data to a DataFrame
+    try:
+        df_new = pd.DataFrame([transaction_data])
+    except Exception as e:
+        logger.error(f"Error converting transaction data to DataFrame: {e}")
+        return False
+
+    # Append the transaction to the filtered database
+    try:
+        with sqlite3.connect(filtered_db_path) as conn:
+            df_new.to_sql("filtered_trades", conn, if_exists="append", index=False)
+        logger.info(f"Added new transaction to filtered database for Magic_Number {magic_number}.")
+        return True
+    except sqlite3.Error as e:
+        logger.error(f"Error adding transaction to filtered database: {e}")
+        return False
+
+# Example transaction data
+transaction_data = {
+    "Open_Time": "2023-01-01 12:00:00",
+    "Close_Time": "2023-01-01 13:00:00",
+    "Symbol": "EURUSD",
+    "Magic_Number": 11085,
+    "Type": "Buy",
+    "Volume": 0.1,
+    "Open_Price": 1.2000,
+    "Close_Price": 1.2050,
+    "Profit": 50.0,
+    "S/L": 1.1900,
+    "T/P": 1.2100,
+    "Commission": 0.0,
+    "Swap": 0.0,
+    "Open_Comment": "Trade 1",
+    "Close_Comment": "Closed"
+}
+
+# Add the transaction to the filtered database
+# success = add_single_transaction("100933", 11085, transaction_data)
+
+@app.route(f'/{CALL_BACK_TOKEN_SYNC_UPDATE}/add_transaction', methods=["POST"])
+def api_add_transaction():
+    client_id = request.args.get("client_id")
+    magic_number = request.args.get("magic_number")
+
+    if not client_id or not magic_number:
+        return jsonify({"error": "Missing client_id or magic_number"}), 400
+
+    try:
+        magic_number = int(magic_number)
+    except ValueError:
+        return jsonify({"error": "Invalid magic_number. Must be an integer."}), 400
+
+    # Get transaction data from the request body
+    transaction_data = request.json
+    if not transaction_data:
+        return jsonify({"error": "Missing transaction data"}), 400
+
+    # Add the transaction to the filtered database
+    success = add_single_transaction(client_id, magic_number, transaction_data)
+    if not success:
+        return jsonify({"error": "Failed to add transaction."}), 500
+
+    return jsonify({"message": "Transaction added successfully."}), 200
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
