@@ -4,6 +4,7 @@ call_back_token = 'CALL BACK TOKEN'
 call_back_token_admin = 'CALL BACK TOKEN admin'
 call_back_token_check_server = 'CAL BACK TOKEN CHECK SERVER'
 call_back_token_sync = 'CAL BACK TOKEN SYNC'
+call_back_token_sync_update =  'CAL BACK TOKEN SYNC UPDATE'
 
 
 # address upload
