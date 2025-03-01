@@ -401,7 +401,9 @@ def create_filtered_database(client_id, magic_number):
 
 
 def calculate_outputs(filtered_db_path):
-    """Calculates the required outputs from the filtered database."""
+    """
+    Calculates the required outputs from the filtered database.
+    """
     try:
         conn = sqlite3.connect(filtered_db_path)
         query = "SELECT * FROM filtered_trades"
@@ -412,6 +414,8 @@ def calculate_outputs(filtered_db_path):
         return None
 
     # Calculate outputs
+    winning_trades, win_percentage = calculate_trades_won_percentage(df["Profit"])
+
     outputs = {
         "Most_Volume": df["Volume"].max(),
         "First_Open_Time": df["Open_Time"].min(),
@@ -419,11 +423,13 @@ def calculate_outputs(filtered_db_path):
         "Total_Profit": df["Profit"].sum(),
         "Drawdown": calculate_drawdown(df["Profit"]),
         "Profit_Factor": calculate_profit_factor(df["Profit"]),
-        "Trades_Won_Percentage": calculate_trades_won_percentage(df["Profit"]),
+        "Trades_Won": winning_trades,
+        "Trades_Won_Percentage": win_percentage,
         "Expected_Payoff": calculate_expected_payoff(df["Profit"])
     }
 
     return outputs
+
 
 def calculate_drawdown(profit_series):
     """
