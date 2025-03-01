@@ -4,6 +4,7 @@ import csv
 import sqlite3
 import pandas as pd
 import config
+import logging
 from flask import Flask, flash, request, jsonify, Response, redirect, url_for, session, abort
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user 
 from werkzeug.utils import secure_filename
@@ -12,6 +13,9 @@ from flask_limiter.util import get_remote_address
 from redis import Redis
 from datetime import datetime
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -325,46 +329,6 @@ transaction_data = {
 
 
 
-# Route to get max volume
-@app.route(f'/{CALL_BACK_TOKEN_SYNC}/get_max_volume', methods=["GET"])
-def get_max_volume():
-    """Fetch the maximum volume for a given magic number from the database."""
-    
-    # Get parameters from URL
-    client_id = request.args.get("clientID")
-    magic_number = request.args.get("magic_number")
-
-    if not client_id or not magic_number:
-        return jsonify({"error": "Missing clientID or magic_number"}), 400
-
-    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
-
-    # Ensure the database file exists
-    if not os.path.exists(db_path):
-        print(f"[DEBUG] Database not found: {db_path}")
-        return jsonify({"error": "Database not found"}), 404
-
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-
-        # Query the maximum volume for the given magic number
-        cur.execute("SELECT MAX(Volume) FROM trades WHERE Magic_Number = ?", (int(magic_number),))
-        max_volume = cur.fetchone()[0]
-
-        conn.close()
-
-        # Debug prints
-        print(f"[DEBUG] Client ID: {client_id}")
-        print(f"[DEBUG] Magic Number: {magic_number}")
-        print(f"[DEBUG] Max Volume: {max_volume}")
-
-        return jsonify({"clientID": client_id, "magic_number": magic_number, "max_volume": max_volume})
-    except Exception as e:
-        print(f"[ERROR] Failed to fetch max volume: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
 def create_filtered_database(client_id, magic_number):
     """
     Creates a filtered database based on the Magic_Number.
@@ -375,28 +339,32 @@ def create_filtered_database(client_id, magic_number):
 
     # Check if the filtered database already exists
     if os.path.exists(filtered_db_path):
-        print(f"Filtered database for Magic_Number {magic_number} already exists.")
+        logger.info(f"Filtered database for Magic_Number {magic_number} already exists.")
         return filtered_db_path
 
     # Connect to the original database
     try:
-        conn = sqlite3.connect(original_db_path)
-        query = f"SELECT * FROM trades WHERE Magic_Number = {magic_number}"
-        df = pd.read_sql_query(query, conn)
-        conn.close()
+        with sqlite3.connect(original_db_path) as conn:
+            query = f"SELECT * FROM trades WHERE Magic_Number = {magic_number}"
+            df = pd.read_sql_query(query, conn)
+    except sqlite3.Error as e:
+        logger.error(f"Error reading from the original database: {e}")
+        return None
     except Exception as e:
-        print(f"Error reading from the original database: {e}")
+        logger.error(f"Unexpected error: {e}")
         return None
 
     # Save the filtered data to the new database
     try:
-        conn = sqlite3.connect(filtered_db_path)
-        df.to_sql("filtered_trades", conn, if_exists="replace", index=False)
-        conn.close()
-        print(f"Filtered database created for Magic_Number {magic_number}.")
+        with sqlite3.connect(filtered_db_path) as conn:
+            df.to_sql("filtered_trades", conn, if_exists="replace", index=False)
+        logger.info(f"Filtered database created for Magic_Number {magic_number}.")
         return filtered_db_path
+    except sqlite3.Error as e:
+        logger.error(f"Error creating the filtered database: {e}")
+        return None
     except Exception as e:
-        print(f"Error creating the filtered database: {e}")
+        logger.error(f"Unexpected error: {e}")
         return None
 
 
@@ -405,41 +373,39 @@ def calculate_outputs(filtered_db_path):
     Calculates the required outputs from the filtered database.
     """
     try:
-        conn = sqlite3.connect(filtered_db_path)
-        query = "SELECT * FROM filtered_trades"
-        df = pd.read_sql_query(query, conn)
-        conn.close()
+        with sqlite3.connect(filtered_db_path) as conn:
+            query = "SELECT * FROM filtered_trades"
+            df = pd.read_sql_query(query, conn)
+    except sqlite3.Error as e:
+        logger.error(f"Error reading from the filtered database: {e}")
+        return None
     except Exception as e:
-        print(f"Error reading from the filtered database: {e}")
+        logger.error(f"Unexpected error: {e}")
         return None
 
     # Calculate outputs
-    winning_trades, win_percentage = calculate_trades_won_percentage(df["Profit"])
-
-    outputs = {
-        "Most_Volume": df["Volume"].max(),
-        "First_Open_Time": df["Open_Time"].min(),
-        "Last_Close_Time": df["Close_Time"].max(),
-        "Total_Profit": df["Profit"].sum(),
-        "Drawdown": calculate_drawdown(df["Profit"]),
-        "Profit_Factor": calculate_profit_factor(df["Profit"]),
-        "Trades_Won": winning_trades,
-        "Trades_Won_Percentage": win_percentage,
-        "Expected_Payoff": calculate_expected_payoff(df["Profit"])
-    }
-
-    return outputs
+    try:
+        winning_trades, win_percentage = calculate_trades_won_percentage(df["Profit"])
+        outputs = {
+            "Most_Volume": df["Volume"].max(),
+            "First_Open_Time": df["Open_Time"].min(),
+            "Last_Close_Time": df["Close_Time"].max(),
+            "Total_Profit": df["Profit"].sum(),
+            "Drawdown": calculate_drawdown(df["Profit"]),
+            "Profit_Factor": calculate_profit_factor(df["Profit"]),
+            "Trades_Won": winning_trades,
+            "Trades_Won_Percentage": win_percentage,
+            "Expected_Payoff": calculate_expected_payoff(df["Profit"])
+        }
+        return outputs
+    except Exception as e:
+        logger.error(f"Error calculating outputs: {e}")
+        return None
 
 
 def calculate_drawdown(profit_series):
     """
     Calculate the maximum drawdown from a series of profits.
-    
-    Parameters:
-        profit_series (list or pandas.Series): A list or Series of profit values.
-    
-    Returns:
-        float: The maximum drawdown.
     """
     import pandas as pd
 
@@ -516,6 +482,7 @@ def get_filtered_outputs(client_id, magic_number):
 
     return outputs
 
+
 @app.route(f'/{CALL_BACK_TOKEN_SYNC}/get_filtered_outputs', methods=["GET"])
 def api_get_filtered_outputs():
     client_id = request.args.get("client_id")
@@ -534,9 +501,6 @@ def api_get_filtered_outputs():
         return jsonify(outputs), 500
 
     return jsonify(outputs), 200
-
-
-
 
 
 
