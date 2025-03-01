@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from redis import Redis
+from datetime import datetime
 
 
 app = Flask(__name__)
@@ -364,192 +365,138 @@ def get_max_volume():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/update_statistics/<client_id>', methods=['GET'])
-def update_statistics(client_id):
-    """Call the function to update statistics from trades."""
+def create_filtered_database(client_id, magic_number):
+    """
+    Creates a filtered database based on the Magic_Number.
+    """
+    # Paths to the original and filtered databases
+    original_db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+    filtered_db_path = os.path.join(config.UPLOAD_DIR, client_id, f"filtered_{magic_number}.db")
+
+    # Check if the filtered database already exists
+    if os.path.exists(filtered_db_path):
+        print(f"Filtered database for Magic_Number {magic_number} already exists.")
+        return filtered_db_path
+
+    # Connect to the original database
     try:
-        update_statistics_from_trades(client_id)  # Ensure this function is available
-        return jsonify({"status": "success", "client_id": client_id, "message": "Statistics updated."})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
-    
-    
-def update_statistics_from_trades(client_id):
-    """Calculate and insert initial statistics for a client from the trades in the database."""
-    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
-
-    if not os.path.exists(db_path):
-        print(f"[DEBUG] Database not found: {db_path}")
-        return
-
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-
-        # Query all trades for the client to calculate statistics
-        cur.execute("SELECT * FROM trades WHERE client_id = ?", (client_id,))
-        trades = cur.fetchall()
-
-        if not trades:
-            print(f"[DEBUG] No trades found for client {client_id}. Cannot update statistics.")
-            conn.close()
-            return
-
-        # Initialize statistics
-        max_volume = 0
-        total_profit = 0
-        total_gross_profit = 0
-        total_gross_loss = 0
-        total_trades = len(trades)
-        trades_won = 0
-        total_drawdown = 0
-        total_profit_factor = 0
-        first_open_time = None
-        last_close_time = None
-        total_expected_payoff = 0
-
-        # Loop through each trade to calculate statistics
-        for trade in trades:
-            # Extract trade details
-            open_time = trade[1]  # Assuming Open_Time is in the 1st column
-            close_time = trade[9]  # Assuming Close_Time is in the 9th column
-            volume = trade[4]  # Assuming Volume is in the 4th column
-            profit = trade[12]  # Assuming Profit is in the 12th column
-
-            # Update max volume
-            max_volume = max(max_volume, volume)
-
-            # Update total profit
-            total_profit += profit
-
-            # Calculate gross profit and gross loss
-            if profit > 0:
-                total_gross_profit += profit
-                trades_won += 1
-            else:
-                total_gross_loss += abs(profit)
-
-            # Calculate drawdown
-            if first_open_time is None or open_time < first_open_time:
-                first_open_time = open_time
-            if last_close_time is None or close_time > last_close_time:
-                last_close_time = close_time
-
-            # Calculate expected payoff
-            expected_payoff = profit / volume if volume > 0 else 0
-            total_expected_payoff += expected_payoff
-
-        # Calculate Profit Factor (gross profit / gross loss)
-        profit_factor = total_gross_profit / total_gross_loss if total_gross_loss != 0 else 0
-
-        # Calculate trades won percentage
-        trades_won_percentage = (trades_won / total_trades) * 100 if total_trades > 0 else 0
-
-        # Calculate total drawdown
-        total_drawdown = (total_gross_loss - total_gross_profit) if total_gross_loss > total_gross_profit else 0
-
-        # Calculate expected payoff
-        expected_payoff = total_expected_payoff / total_trades if total_trades > 0 else 0
-
-        # Insert statistics into the stats table
-        cur.execute("""
-        INSERT INTO stats (client_id, max_volume, first_open_time, last_close_time, total_profit, drawdown, profit_factor, trades_won_percentage, expected_payoff)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (client_id, max_volume, first_open_time, last_close_time, total_profit, total_drawdown, profit_factor, trades_won_percentage, expected_payoff))
-
-        conn.commit()
-        conn.close()
-
-        print(f"[DEBUG] Statistics updated for client {client_id}.")
-    except Exception as e:
-        print(f"[ERROR] Failed to update statistics: {e}")
-
-
-
-def ensure_statistics_table(client_id):
-    """Ensure the stats table exists for the client, and initialize if necessary."""
-    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
-
-    if not os.path.exists(db_path):
-        print(f"[DEBUG] Database not found: {db_path}")
-        return
-
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-
-        # Check if stats table exists
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='stats';")
-        table_exists = cur.fetchone()
-
-        if not table_exists:
-            print("[DEBUG] Stats table doesn't exist, creating and updating stats.")
-            update_statistics_from_trades(client_id)  # Create stats table and insert initial data
-        
+        conn = sqlite3.connect(original_db_path)
+        query = f"SELECT * FROM trades WHERE Magic_Number = {magic_number}"
+        df = pd.read_sql_query(query, conn)
         conn.close()
     except Exception as e:
-        print(f"[ERROR] Failed to ensure statistics table: {e}")
+        print(f"Error reading from the original database: {e}")
+        return None
+
+    # Save the filtered data to the new database
+    try:
+        conn = sqlite3.connect(filtered_db_path)
+        df.to_sql("filtered_trades", conn, if_exists="replace", index=False)
+        conn.close()
+        print(f"Filtered database created for Magic_Number {magic_number}.")
+        return filtered_db_path
+    except Exception as e:
+        print(f"Error creating the filtered database: {e}")
+        return None
 
 
+def calculate_outputs(filtered_db_path):
+    """Calculates the required outputs from the filtered database."""
+    try:
+        conn = sqlite3.connect(filtered_db_path)
+        query = "SELECT * FROM filtered_trades"
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+    except Exception as e:
+        print(f"Error reading from the filtered database: {e}")
+        return None
 
-def update_statistics_incrementally(client_id, new_trade):
-    """Update statistics based on the new trade data."""
-    db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+    # Calculate outputs
+    outputs = {
+        "Most_Volume": df["Volume"].max(),
+        "First_Open_Time": df["Open_Time"].min(),
+        "Last_Close_Time": df["Close_Time"].max(),
+        "Total_Profit": df["Profit"].sum(),
+        "Drawdown": calculate_drawdown(df["Profit"]),
+        "Profit_Factor": calculate_profit_factor(df["Profit"]),
+        "Trades_Won_Percentage": calculate_trades_won_percentage(df["Profit"]),
+        "Expected_Payoff": calculate_expected_payoff(df["Profit"])
+    }
 
-    if not os.path.exists(db_path):
-        print(f"[DEBUG] Database not found: {db_path}")
-        return
+    return outputs
+
+def calculate_drawdown(profit_series):
+    """
+    Calculates the maximum drawdown from the profit series.
+    """
+    cumulative_profit = profit_series.cumsum()
+    peak = cumulative_profit.cummax()
+    drawdown = (cumulative_profit - peak).min()
+    return drawdown
+
+
+def calculate_profit_factor(profit_series):
+    """
+    Calculates the profit factor (Gross Profit / Gross Loss).
+    """
+    gross_profit = profit_series[profit_series > 0].sum()
+    gross_loss = abs(profit_series[profit_series < 0].sum())
+    return gross_profit / gross_loss if gross_loss != 0 else 0
+
+
+def calculate_trades_won_percentage(profit_series):
+    """
+    Calculates the percentage of winning trades.
+    """
+    winning_trades = profit_series[profit_series > 0].count()
+    total_trades = profit_series.count()
+    return (winning_trades / total_trades) * 100 if total_trades != 0 else 0
+
+
+def calculate_expected_payoff(profit_series):
+    """
+    Calculates the expected payoff (Average profit per trade).
+    """
+    return profit_series.mean()
+
+
+def get_filtered_outputs(client_id, magic_number):
+    """
+    Main function to get the filtered outputs.
+    """
+    # Step 1: Create or check the filtered database
+    filtered_db_path = create_filtered_database(client_id, magic_number)
+    if not filtered_db_path:
+        return {"error": "Failed to create or access the filtered database."}
+
+    # Step 2: Calculate the outputs
+    outputs = calculate_outputs(filtered_db_path)
+    if not outputs:
+        return {"error": "Failed to calculate outputs."}
+
+    return outputs
+
+@app.route(f'/{CALL_BACK_TOKEN_SYNC}/get_filtered_outputs', methods=["GET"])
+def api_get_filtered_outputs():
+    client_id = request.args.get("client_id")
+    magic_number = request.args.get("magic_number")
+
+    if not client_id or not magic_number:
+        return jsonify({"error": "Missing client_id or magic_number"}), 400
 
     try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
+        magic_number = int(magic_number)
+    except ValueError:
+        return jsonify({"error": "Invalid magic_number. Must be an integer."}), 400
 
-        # Fetch the current statistics for the client
-        cur.execute("SELECT * FROM stats WHERE client_id = ?", (client_id,))
-        stats = cur.fetchone()
+    outputs = get_filtered_outputs(client_id, magic_number)
+    if "error" in outputs:
+        return jsonify(outputs), 500
 
-        if not stats:
-            print(f"[DEBUG] Stats not found for client {client_id}. Creating stats table.")
-            update_statistics_from_trades(client_id)
-            return
+    return jsonify(outputs), 200
 
-        # Extract current statistics
-        max_volume = stats[1]
-        total_profit = stats[4]
-        total_gross_profit = stats[5]
-        total_gross_loss = stats[6]
-        trades_won_percentage = stats[7]
 
-        # New data from the trade
-        volume, profit = new_trade['volume'], new_trade['profit']
 
-        # Incremental updates
-        max_volume = max(max_volume, volume)
-        total_profit += profit
-
-        if profit > 0:
-            total_gross_profit += profit
-        else:
-            total_gross_loss += abs(profit)
-
-        # Calculate trades won percentage
-        total_trades = len(stats)  # Assuming stats contains all trade information
-        won_trades = len([trade for trade in stats if trade['profit'] > 0])
-        trades_won_percentage = (won_trades / total_trades) * 100 if total_trades > 0 else 0
-
-        # Update the stats table
-        cur.execute("""
-        UPDATE stats
-        SET max_volume = ?, total_profit = ?, total_gross_profit = ?, total_gross_loss = ?, trades_won_percentage = ?
-        WHERE client_id = ?
-        """, (max_volume, total_profit, total_gross_profit, total_gross_loss, trades_won_percentage, client_id))
-
-        conn.commit()
-        conn.close()
-        print(f"[DEBUG] Statistics updated for client: {client_id}")
-
-    except Exception as e:
-        print(f"[ERROR] Failed to update statistics: {e}")
 
 
 
