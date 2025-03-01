@@ -387,15 +387,15 @@ def calculate_outputs(filtered_db_path):
     try:
         winning_trades, win_percentage = calculate_trades_won_percentage(df["Profit"])
         outputs = {
-            "Most_Volume": df["Volume"].max(),
-            "First_Open_Time": df["Open_Time"].min(),
-            "Last_Close_Time": df["Close_Time"].max(),
-            "Total_Profit": df["Profit"].sum(),
-            "Drawdown": calculate_drawdown(df["Profit"]),
-            "Profit_Factor": calculate_profit_factor(df["Profit"]),
-            "Trades_Won": winning_trades,
-            "Trades_Won_Percentage": win_percentage,
-            "Expected_Payoff": calculate_expected_payoff(df["Profit"])
+            "Most_Volume": float(df["Volume"].max()),  # Convert to float
+            "First_Open_Time": str(df["Open_Time"].min()),  # Convert to string
+            "Last_Close_Time": str(df["Close_Time"].max()),  # Convert to string
+            "Total_Profit": float(df["Profit"].sum()),  # Convert to float
+            "Drawdown": float(calculate_drawdown(df["Profit"])),  # Convert to float
+            "Profit_Factor": float(calculate_profit_factor(df["Profit"])),  # Convert to float
+            "Trades_Won": int(winning_trades),  # Convert to int
+            "Trades_Won_Percentage": float(win_percentage),  # Convert to float
+            "Expected_Payoff": float(calculate_expected_payoff(df["Profit"]))  # Convert to float
         }
         return outputs
     except Exception as e:
