@@ -330,6 +330,43 @@ transaction_data = {
 
 
 
+# def create_filtered_database(client_id, magic_number):
+#     """
+#     Creates a filtered database based on the Magic_Number.
+#     """
+#     # Paths to the original and filtered databases
+#     original_db_path = os.path.join(config.UPLOAD_DIR, client_id, config.DATABASE_FILENAME)
+#     filtered_db_path = os.path.join(config.UPLOAD_DIR, client_id, f"filtered_{magic_number}.db")
+
+#     # Check if the filtered database already exists
+#     if os.path.exists(filtered_db_path):
+#         logger.info(f"Filtered database for Magic_Number {magic_number} already exists.")
+#         return filtered_db_path
+
+#     # Connect to the original database
+#     try:
+#         with sqlite3.connect(original_db_path) as conn:
+#             query = f"SELECT * FROM trades WHERE Magic_Number = {magic_number}"
+#             df = pd.read_sql_query(query, conn)
+#     except sqlite3.Error as e:
+#         logger.error(f"Error reading from the original database: {e}")
+#         return None
+#     except Exception as e:
+#         logger.error(f"Unexpected error: {e}")
+#         return None
+
+#     # Save the filtered data to the new database
+#     try:
+#         with sqlite3.connect(filtered_db_path) as conn:
+#             df.to_sql("filtered_trades", conn, if_exists="replace", index=False)
+#         logger.info(f"Filtered database created for Magic_Number {magic_number}.")
+#         return filtered_db_path
+#     except sqlite3.Error as e:
+#         logger.error(f"Error creating the filtered database: {e}")
+#         return None
+#     except Exception as e:
+#         logger.error(f"Unexpected error: {e}")
+#         return None
 def create_filtered_database(client_id, magic_number):
     """
     Creates a filtered database based on the Magic_Number.
@@ -340,10 +377,34 @@ def create_filtered_database(client_id, magic_number):
 
     # Check if the filtered database already exists
     if os.path.exists(filtered_db_path):
-        logger.info(f"Filtered database for Magic_Number {magic_number} already exists.")
-        return filtered_db_path
+        # Count the number of rows in the original database that match the magic_number condition
+        try:
+            with sqlite3.connect(original_db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(f"SELECT COUNT(*) FROM trades WHERE Magic_Number = {magic_number}")
+                original_count = cursor.fetchone()[0]
+        except sqlite3.Error as e:
+            logger.error(f"Error counting rows in the original database: {e}")
+            return None
 
-    # Connect to the original database
+        # Count the number of rows in the filtered database
+        try:
+            with sqlite3.connect(filtered_db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM filtered_trades")
+                filtered_count = cursor.fetchone()[0]
+        except sqlite3.Error as e:
+            logger.error(f"Error counting rows in the filtered database: {e}")
+            return None
+
+        # If counts match, the filtered database is up to date
+        if original_count == filtered_count:
+            logger.info(f"Filtered database for Magic_Number {magic_number} is up to date.")
+            return filtered_db_path
+        else:
+            logger.info(f"Filtered database for Magic_Number {magic_number} is outdated. Recreating...")
+
+    # Connect to the original database and create the filtered database
     try:
         with sqlite3.connect(original_db_path) as conn:
             query = f"SELECT * FROM trades WHERE Magic_Number = {magic_number}"
